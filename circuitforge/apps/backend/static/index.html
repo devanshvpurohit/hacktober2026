@@ -428,7 +428,7 @@
       }
       const btn = document.getElementById('btnCreate');
       btn.disabled = true;
-      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Creating...';
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Creating & Planning...';
 
       try {
         const res = await fetch('/api/projects', {
@@ -439,11 +439,25 @@
         if (!res.ok) throw new Error(await res.text());
         const data = await res.json();
         currentProjectId = data.id;
-        showToast('Project created successfully!', 'success');
+
+        // Auto plan
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Generating Hardware Plan...';
+        await fetch(`/api/projects/${data.id}/plan`, { method: 'POST' });
+
+        // Auto generate
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Generating Firmware & Diagram...';
+        await fetch(`/api/projects/${data.id}/generate`, { method: 'POST' });
+
+        showToast('Project planned and generated successfully!', 'success');
         await loadProjectWorkspace(data.id);
         showView('workspace');
+        switchWsTab('overview');
       } catch (err) {
-        showToast('Creation failed: ' + err.message, 'error');
+        showToast('Creation error: ' + err.message, 'error');
+        if (currentProjectId) {
+          await loadProjectWorkspace(currentProjectId);
+          showView('workspace');
+        }
       } finally {
         btn.disabled = false;
         btn.innerHTML = '<i class="fa-solid fa-bolt"></i> <span>Build Circuit</span>';

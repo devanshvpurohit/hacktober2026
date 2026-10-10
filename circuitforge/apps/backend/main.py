@@ -248,7 +248,14 @@ async def generate_project(project_id: str):
     if project is None:
         raise HTTPException(status_code=404, detail="Project not found")
     if project.spec is None:
-        raise HTTPException(status_code=400, detail="Project must be planned first. Call /plan first.")
+        try:
+            spec, raw = await plan_project(project.user_request)
+            project.spec = spec
+            project.name = spec.name
+            project.description = spec.description
+            project.bom = generate_bom(project_id, spec)
+        except Exception as e:
+            raise HTTPException(status_code=422, detail=f"Planning failed: {e}")
 
     project.status = ProjectStatus.GENERATING
     await update_project(project)

@@ -1,0 +1,68 @@
+{
+  "version": 1,
+  "author": "CircuitForge AI",
+  "editor": "wokwi",
+  "parts": [
+    {
+      "id": "board",
+      "type": "wokwi-esp32-devkit-v1",
+      "top": 100,
+      "left": 200,
+      "attrs": {}
+    },
+    {
+      "id": "dht22_1",
+      "type": "wokwi-dht22",
+      "top": 350,
+      "left": 50,
+      "attrs": {
+        "temperature": "25",
+        "humidity": "50"
+      }
+    },
+    {
+      "id": "led_1",
+      "type": "wokwi-led",
+      "top": 350,
+      "left": 200,
+      "attrs": {
+        "color": "red"
+      }
+    },
+    {
+      "id": "r1",
+      "type": "wokwi-resistor",
+      "top": 350,
+      "left": 350,
+      "attrs": {
+        "resistance": "220"
+      }
+    }
+  ],
+  "connections": [
+    [
+      "board:GPIO4",
+      "dht22_1:SDA",
+      "green",
+      []
+    ],
+    [
+      "board:GPIO2",
+      "led_1:A",
+      "green",
+      []
+    ],
+    [
+      "board:3V3",
+      "dht22_1:VCC",
+      "red",
+      []
+    ],
+    [
+      "board:GND",
+      "dht22_1:GND",
+      "black",
+      []
+    ]
+  ]
+}

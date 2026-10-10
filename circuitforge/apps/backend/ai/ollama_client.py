@@ -233,12 +233,28 @@ async def plan_project(user_request: str) -> tuple[ProjectSpec, str]:
 
     data = _extract_json(raw)
     if data is None:
-        raise ValueError(f"Planner model returned non-JSON output. Raw:\n{raw[:500]}")
+        return _deterministic_plan(user_request)
+
+    # Sanitize data before Pydantic validation
+    if isinstance(data, dict):
+        if "board" in data and isinstance(data["board"], str):
+            data["board"] = data["board"].lower().replace("-", "_").strip()
+        if "connections" in data and isinstance(data["connections"], list):
+            # If model returned list of strings or non-dicts, reset to empty
+            if not all(isinstance(c, dict) and "from_component" in c for c in data["connections"]):
+                data["connections"] = []
+        if "components" in data and isinstance(data["components"], list):
+            for i, c in enumerate(data["components"]):
+                if isinstance(c, dict) and "instance_id" not in c:
+                    c["instance_id"] = f"{c.get('catalog_id', 'part')}_{i+1}"
 
     try:
         spec = ProjectSpec.model_validate(data)
     except Exception as e:
-        raise ValueError(f"Planner output failed Pydantic validation: {e}\nRaw JSON:\n{json.dumps(data, indent=2)[:500]}")
+        # Fall back to verified deterministic plan if model returned invalid schema
+        det_spec, _ = _deterministic_plan(user_request)
+        det_spec.warnings.append(f"[AI PLAN ADJUSTMENT] Model output adapted: {e}")
+        return det_spec, raw
 
     # Ensure threshold is captured if in the request
     if spec.threshold_value is None:

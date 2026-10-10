@@ -1,0 +1,7 @@
+[wokwi]
+version = 1
+firmware = "build/ESP32_OLED_Display_with_WiFi.ino.bin"
+elf = "build/ESP32_OLED_Display_with_WiFi.ino.elf"
+
+[esp32]
+# ESP32 board configuration

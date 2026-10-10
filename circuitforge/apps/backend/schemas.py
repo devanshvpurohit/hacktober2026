@@ -123,6 +123,64 @@ class ProjectSpec(BaseModel):
     threshold_value: Optional[float] = None
     threshold_unit: Optional[str] = None
 
+    @field_validator('board', mode='before')
+    @classmethod
+    def normalize_board(cls, v):
+        if isinstance(v, str):
+            v_clean = v.lower().strip().replace("-", "_").replace(" ", "_")
+            if "esp32" in v_clean:
+                if "s3" in v_clean:
+                    return BoardType.ESP32_S3
+                return BoardType.ESP32
+            if "nano" in v_clean:
+                return BoardType.ARDUINO_NANO
+            if "uno" in v_clean:
+                return BoardType.ARDUINO_UNO
+        return v
+
+    @field_validator('connections', mode='before')
+    @classmethod
+    def normalize_connections(cls, v):
+        if not isinstance(v, list):
+            return []
+        valid_conns = []
+        for item in v:
+            if isinstance(item, dict) and "from_component" in item and "to_component" in item:
+                valid_conns.append(item)
+            elif isinstance(item, Connection):
+                valid_conns.append(item)
+        return valid_conns
+
+    @field_validator('components', mode='before')
+    @classmethod
+    def normalize_components(cls, v):
+        if not isinstance(v, list):
+            return []
+        cleaned = []
+        for item in v:
+            if isinstance(item, dict):
+                cid = str(item.get("catalog_id", "")).lower().strip()
+                if "dht" in cid:
+                    item["catalog_id"] = "dht22"
+                elif "led" in cid:
+                    item["catalog_id"] = "led_red"
+                elif "resistor_10k" in cid:
+                    item["catalog_id"] = "resistor_10k"
+                elif "resistor" in cid:
+                    item["catalog_id"] = "resistor_220"
+                elif "hc" in cid or "sr04" in cid or "ultrasonic" in cid:
+                    item["catalog_id"] = "hc_sr04"
+                elif "buzzer" in cid:
+                    item["catalog_id"] = "buzzer"
+                elif "button" in cid:
+                    item["catalog_id"] = "push_button"
+                elif "pot" in cid:
+                    item["catalog_id"] = "potentiometer_10k"
+                cleaned.append(item)
+            else:
+                cleaned.append(item)
+        return cleaned
+
 
 # ── Validation Result ─────────────────────────────────────────────────────────
 
