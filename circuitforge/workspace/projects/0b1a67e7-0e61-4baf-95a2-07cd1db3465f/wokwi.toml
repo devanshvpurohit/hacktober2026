@@ -1,0 +1,7 @@
+[wokwi]
+version = 1
+firmware = "build/ESP32_Servo_Control_System.ino.bin"
+elf = "build/ESP32_Servo_Control_System.ino.elf"
+
+[esp32]
+# ESP32 board configuration

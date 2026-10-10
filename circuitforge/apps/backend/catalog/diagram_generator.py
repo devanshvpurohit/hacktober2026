@@ -38,6 +38,18 @@ def _potentiometer_attrs(value: str = "0.5") -> dict:
     return {"value": value}
 
 
+def _servo_attrs() -> dict:
+    return {"horn": "singleArm"}
+
+
+def _lcd_attrs() -> dict:
+    return {"pins": "i2c"}
+
+
+def _relay_attrs() -> dict:
+    return {}
+
+
 COMPONENT_ATTRS: dict[str, callable] = {
     "resistor_220": lambda inst: _resistor_attrs("220"),
     "resistor_10k": lambda inst: _resistor_attrs("10000"),
@@ -47,6 +59,9 @@ COMPONENT_ATTRS: dict[str, callable] = {
     "buzzer": lambda inst: _buzzer_attrs(),
     "push_button": lambda inst: {},
     "potentiometer_10k": lambda inst: _potentiometer_attrs(),
+    "servo_motor": lambda inst: _servo_attrs(),
+    "lcd_display": lambda inst: _lcd_attrs(),
+    "relay_module": lambda inst: _relay_attrs(),
 }
 
 # Layout positions for parts — space them horizontally
@@ -73,12 +88,32 @@ def generate_diagram(spec: ProjectSpec) -> dict:
         "attrs": {}
     })
 
+    # ── Wokwi ID mapping for flexible components ─────────────────────────────
+    WOKWI_ID_MAP = {
+        "servo_motor": "wokwi-servo",
+        "lcd_display": "wokwi-lcd1602",
+        "relay_module": "wokwi-relay-module",
+    }
+
     # ── Components ────────────────────────────────────────────────────────────
     x = 50
     for inst in spec.components:
         cat = CATALOG.get(inst.catalog_id)
+        
+        # Handle flexible components not in catalog
         if cat is None:
-            continue  # skip unknown (already validated)
+            wokwi_id = WOKWI_ID_MAP.get(inst.catalog_id, "wokwi-resistor")  # fallback
+            attr_fn = COMPONENT_ATTRS.get(inst.catalog_id, lambda i: {})
+            attrs = attr_fn(inst)
+            parts.append({
+                "id": inst.instance_id,
+                "type": wokwi_id,
+                "top": Y_COMPONENTS,
+                "left": x,
+                "attrs": attrs,
+            })
+            x += X_STEP
+            continue
 
         attr_fn = COMPONENT_ATTRS.get(inst.catalog_id, lambda i: {})
         attrs = attr_fn(inst)

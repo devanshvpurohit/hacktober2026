@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "author": "CircuitForge AI",
+  "editor": "wokwi",
+  "parts": [
+    {
+      "id": "board",
+      "type": "wokwi-esp32-devkit-v1",
+      "top": 100,
+      "left": 200,
+      "attrs": {}
+    },
+    {
+      "id": "display_1",
+      "type": "wokwi-lcd1602",
+      "top": 350,
+      "left": 50,
+      "attrs": {
+        "pins": "i2c"
+      }
+    },
+    {
+      "id": "dht_1",
+      "type": "wokwi-dht22",
+      "top": 350,
+      "left": 200,
+      "attrs": {
+        "temperature": "25",
+        "humidity": "50"
+      }
+    }
+  ],
+  "connections": [
+    [
+      "board:GPIO21",
+      "display_1:SDA",
+      "green",
+      []
+    ],
+    [
+      "board:GPIO22",
+      "display_1:SCL",
+      "green",
+      []
+    ],
+    [
+      "board:GPIO4",
+      "dht_1:SDA",
+      "green",
+      []
+    ],
+    [
+      "board:3V3",
+      "dht_1:VCC",
+      "red",
+      []
+    ],
+    [
+      "board:GND",
+      "dht_1:GND",
+      "black",
+      []
+    ]
+  ]
+}

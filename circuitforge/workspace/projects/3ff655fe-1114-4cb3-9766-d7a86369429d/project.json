@@ -1,0 +1,146 @@
+{
+  "id": "3ff655fe-1114-4cb3-9766-d7a86369429d",
+  "name": "ESP32 Servo Control System",
+  "description": "ESP32 servo motor control with button input",
+  "user_request": "Simple Servo Motor Control  with oled  display",
+  "status": "planned",
+  "simulation_status": "not_simulated",
+  "spec": {
+    "name": "ESP32 Servo Control System",
+    "description": "ESP32 servo motor control with button input",
+    "behavior": "Controls servo motor position based on button presses. Button cycles servo through different positions (0°, 90°, 180°).",
+    "board": "esp32",
+    "components": [
+      {
+        "instance_id": "servo_1",
+        "catalog_id": "servo_motor",
+        "name": "Servo Motor SG90",
+        "quantity": 1,
+        "value": null
+      },
+      {
+        "instance_id": "btn_1",
+        "catalog_id": "push_button",
+        "name": "Push Button",
+        "quantity": 1,
+        "value": null
+      },
+      {
+        "instance_id": "led_1",
+        "catalog_id": "led_red",
+        "name": "Status LED",
+        "quantity": 1,
+        "value": null
+      },
+      {
+        "instance_id": "r1",
+        "catalog_id": "resistor_220",
+        "name": "220 Ohm Resistor",
+        "quantity": 1,
+        "value": "220"
+      }
+    ],
+    "pin_assignments": [
+      {
+        "component_id": "servo_motor",
+        "component_instance": "servo_1",
+        "component_pin": "SIG",
+        "gpio_pin": 13,
+        "description": "Servo control signal (PWM)"
+      },
+      {
+        "component_id": "push_button",
+        "component_instance": "btn_1",
+        "component_pin": "1.l",
+        "gpio_pin": 12,
+        "description": "Button input"
+      },
+      {
+        "component_id": "led_red",
+        "component_instance": "led_1",
+        "component_pin": "A",
+        "gpio_pin": 2,
+        "description": "Status LED"
+      }
+    ],
+    "connections": [],
+    "libraries": [
+      "ESP32Servo"
+    ],
+    "acceptance_criteria": [
+      "Control servo position with button",
+      "Button cycles servo through 0°, 90°, 180°",
+      "LED indicates servo movement"
+    ],
+    "assumptions": [],
+    "warnings": [
+      "Servo motor (servo_motor) not in standard catalog - using generic SG90 servo",
+      "Servo may require external 5V power supply if moving under load"
+    ],
+    "missing_info": [
+      "Servo motor component catalog entry needed for BOM pricing"
+    ],
+    "unsupported": [],
+    "threshold_value": null,
+    "threshold_unit": null
+  },
+  "firmware_code": null,
+  "diagram_json": null,
+  "validation_result": null,
+  "compilation_success": null,
+  "compilation_log": null,
+  "repair_attempts": [],
+  "bom": {
+    "project_id": "3ff655fe-1114-4cb3-9766-d7a86369429d",
+    "lines": [
+      {
+        "component_id": "esp32_devkitv1",
+        "name": "ESP32 DevKit V1",
+        "quantity": 1,
+        "unit_price_inr": 350.0,
+        "subtotal_inr": 350.0,
+        "price_source": "catalog_estimate",
+        "price_verified_date": "2025-01-01",
+        "confidence": "indicative"
+      },
+      {
+        "component_id": "push_button",
+        "name": "Tactile Push Button",
+        "quantity": 1,
+        "unit_price_inr": 5.0,
+        "subtotal_inr": 5.0,
+        "price_source": "catalog_estimate",
+        "price_verified_date": "2025-01-01",
+        "confidence": "indicative"
+      },
+      {
+        "component_id": "led_red",
+        "name": "Red LED",
+        "quantity": 1,
+        "unit_price_inr": 5.0,
+        "subtotal_inr": 5.0,
+        "price_source": "catalog_estimate",
+        "price_verified_date": "2025-01-01",
+        "confidence": "indicative"
+      },
+      {
+        "component_id": "resistor_220",
+        "name": "220Ω Resistor",
+        "quantity": 1,
+        "unit_price_inr": 1.0,
+        "subtotal_inr": 1.0,
+        "price_source": "catalog_estimate",
+        "price_verified_date": "2025-01-01",
+        "confidence": "indicative"
+      }
+    ],
+    "total_inr": 361.0,
+    "currency": "INR",
+    "generated_at": "2026-10-10T09:05:16.596077",
+    "note": "Prices are indicative catalog estimates as of the verification date. Verify current prices before purchasing. Prices may vary by supplier."
+  },
+  "created_at": "2026-10-10T09:05:16.574564",
+  "updated_at": "2026-10-10T09:05:16.596138",
+  "error_message": null,
+  "workspace_path": "/Users/devanshvpurohit/Downloads/VNR-main/circuitforge/workspace/projects/3ff655fe-1114-4cb3-9766-d7a86369429d"
+}

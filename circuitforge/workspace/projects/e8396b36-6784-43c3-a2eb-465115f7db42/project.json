@@ -1,0 +1,132 @@
+{
+  "id": "e8396b36-6784-43c3-a2eb-465115f7db42",
+  "name": "Simple Servo Motor with Button Control",
+  "description": "A project to control a servo motor using a button press to rotate it.",
+  "user_request": "Build a servo motor that rotates with button press",
+  "status": "planned",
+  "simulation_status": "not_simulated",
+  "spec": {
+    "name": "Simple Servo Motor with Button Control",
+    "description": "A project to control a servo motor using a button press to rotate it.",
+    "behavior": "The project will consist of a servo motor controlled by a button press. When the button is pressed, the servo motor will rotate. The rotation will be controlled by the GPIO pins connected to the servo motor.  The project will continuously monitor the servo motor's position and rotate it until the button is released.  The project will use a DHT22 sensor to read the ambient temperature and display it on an LCD.",
+    "board": "esp32",
+    "components": [
+      {
+        "instance_id": "dht22_1",
+        "catalog_id": "dht22",
+        "name": "DHT22 Sensor",
+        "quantity": 1,
+        "value": null
+      },
+      {
+        "instance_id": "led_1",
+        "catalog_id": "led_red",
+        "name": "LED Indicator",
+        "quantity": 1,
+        "value": null
+      },
+      {
+        "instance_id": "r1",
+        "catalog_id": "resistor_220",
+        "name": "220 Ohm Resistor",
+        "quantity": 1,
+        "value": "220"
+      }
+    ],
+    "pin_assignments": [
+      {
+        "component_id": "dht22",
+        "component_instance": "dht22_1",
+        "component_pin": "SDA",
+        "gpio_pin": 4,
+        "description": "DHT22 data pin"
+      },
+      {
+        "component_id": "led_1",
+        "component_instance": "led_1",
+        "component_pin": "A",
+        "gpio_pin": 2,
+        "description": "LED anode"
+      }
+    ],
+    "connections": [],
+    "libraries": [
+      "DHT sensor library",
+      "Adafruit Unified Sensor"
+    ],
+    "acceptance_criteria": [
+      "The DHT22 sensor reads the temperature every 2 seconds.",
+      "The LED turns on when the temperature is above 30°C.",
+      "The servo motor rotates smoothly."
+    ],
+    "assumptions": [
+      "DHT22 module with built-in pull-up resistor."
+    ],
+    "warnings": [
+      "Allow 2s warmup time for DHT22."
+    ],
+    "missing_info": [],
+    "unsupported": [],
+    "threshold_value": 30.0,
+    "threshold_unit": "Celsius"
+  },
+  "firmware_code": null,
+  "diagram_json": null,
+  "validation_result": null,
+  "compilation_success": null,
+  "compilation_log": null,
+  "repair_attempts": [],
+  "bom": {
+    "project_id": "e8396b36-6784-43c3-a2eb-465115f7db42",
+    "lines": [
+      {
+        "component_id": "esp32_devkitv1",
+        "name": "ESP32 DevKit V1",
+        "quantity": 1,
+        "unit_price_inr": 350.0,
+        "subtotal_inr": 350.0,
+        "price_source": "catalog_estimate",
+        "price_verified_date": "2025-01-01",
+        "confidence": "indicative"
+      },
+      {
+        "component_id": "dht22",
+        "name": "DHT22 Temperature & Humidity Sensor",
+        "quantity": 1,
+        "unit_price_inr": 200.0,
+        "subtotal_inr": 200.0,
+        "price_source": "catalog_estimate",
+        "price_verified_date": "2025-01-01",
+        "confidence": "indicative"
+      },
+      {
+        "component_id": "led_red",
+        "name": "Red LED",
+        "quantity": 1,
+        "unit_price_inr": 5.0,
+        "subtotal_inr": 5.0,
+        "price_source": "catalog_estimate",
+        "price_verified_date": "2025-01-01",
+        "confidence": "indicative"
+      },
+      {
+        "component_id": "resistor_220",
+        "name": "220Ω Resistor",
+        "quantity": 1,
+        "unit_price_inr": 1.0,
+        "subtotal_inr": 1.0,
+        "price_source": "catalog_estimate",
+        "price_verified_date": "2025-01-01",
+        "confidence": "indicative"
+      }
+    ],
+    "total_inr": 556.0,
+    "currency": "INR",
+    "generated_at": "2026-10-10T08:58:30.091437",
+    "note": "Prices are indicative catalog estimates as of the verification date. Verify current prices before purchasing. Prices may vary by supplier."
+  },
+  "created_at": "2026-10-10T08:57:56.422021",
+  "updated_at": "2026-10-10T08:58:30.091539",
+  "error_message": null,
+  "workspace_path": "/Users/devanshvpurohit/Downloads/VNR-main/circuitforge/workspace/projects/e8396b36-6784-43c3-a2eb-465115f7db42"
+}

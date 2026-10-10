@@ -1,0 +1,205 @@
+{
+  "id": "7e4bb2b5-1353-48ad-8467-70d56a0d1737",
+  "name": "Simple Servo Motor Control with Button",
+  "description": "A project to control a servo motor using a button, displaying temperature readings.",
+  "user_request": "Build a servo motor control with a button",
+  "status": "planned",
+  "simulation_status": "not_simulated",
+  "spec": {
+    "name": "Simple Servo Motor Control with Button",
+    "description": "A project to control a servo motor using a button, displaying temperature readings.",
+    "behavior": "The project will read the temperature from the DHT22 sensor, display it on an LCD, and control the servo motor based on the temperature reading. The button will toggle the servo motor's direction.",
+    "board": "esp32",
+    "components": [
+      {
+        "instance_id": "dht22_1",
+        "catalog_id": "dht22",
+        "name": "DHT22 Sensor",
+        "quantity": 1,
+        "value": null
+      },
+      {
+        "instance_id": "led_1",
+        "catalog_id": "led_red",
+        "name": "LED Indicator",
+        "quantity": 1,
+        "value": null
+      },
+      {
+        "instance_id": "r1",
+        "catalog_id": "resistor_220",
+        "name": "220 Ohm Resistor",
+        "quantity": 1,
+        "value": null
+      },
+      {
+        "instance_id": "buzzer",
+        "catalog_id": "buzzer",
+        "name": "Buzzer",
+        "quantity": 1,
+        "value": null
+      },
+      {
+        "instance_id": "push_button",
+        "catalog_id": "push_button",
+        "name": "Push Button",
+        "quantity": 1,
+        "value": null
+      },
+      {
+        "instance_id": "potentiometer_10k",
+        "catalog_id": "potentiometer_10k",
+        "name": "Potentiometer 10k",
+        "quantity": 1,
+        "value": null
+      }
+    ],
+    "pin_assignments": [
+      {
+        "component_id": "dht22",
+        "component_instance": "dht22_1",
+        "component_pin": "SDA",
+        "gpio_pin": 4,
+        "description": "DHT22 data pin"
+      },
+      {
+        "component_id": "led_1",
+        "component_instance": "led_1",
+        "component_pin": "A",
+        "gpio_pin": 2,
+        "description": "LED anode"
+      },
+      {
+        "component_id": "buzzer",
+        "component_instance": "buzzer",
+        "component_pin": "A",
+        "gpio_pin": 2,
+        "description": "Buzzer"
+      },
+      {
+        "component_id": "push_button",
+        "component_instance": "push_button",
+        "component_pin": "A",
+        "gpio_pin": 2,
+        "description": "Push Button"
+      },
+      {
+        "component_id": "potentiometer_10k",
+        "component_instance": "potentiometer_10k",
+        "component_pin": "A",
+        "gpio_pin": 3,
+        "description": "Potentiometer"
+      }
+    ],
+    "connections": [],
+    "libraries": [
+      "DHT sensor library",
+      "Adafruit Unified Sensor"
+    ],
+    "acceptance_criteria": [
+      "Temperature is read every 2 seconds",
+      "LED turns on when temperature > 30C"
+    ],
+    "assumptions": [
+      "DHT22 module with built-in pull-up resistor"
+    ],
+    "warnings": [
+      "Allow 2s warmup time for DHT22"
+    ],
+    "missing_info": [],
+    "unsupported": [
+      "Using a different GPIO pin for the buzzer"
+    ],
+    "threshold_value": 30.0,
+    "threshold_unit": "Celsius"
+  },
+  "firmware_code": null,
+  "diagram_json": null,
+  "validation_result": null,
+  "compilation_success": null,
+  "compilation_log": null,
+  "repair_attempts": [],
+  "bom": {
+    "project_id": "7e4bb2b5-1353-48ad-8467-70d56a0d1737",
+    "lines": [
+      {
+        "component_id": "esp32_devkitv1",
+        "name": "ESP32 DevKit V1",
+        "quantity": 1,
+        "unit_price_inr": 350.0,
+        "subtotal_inr": 350.0,
+        "price_source": "catalog_estimate",
+        "price_verified_date": "2025-01-01",
+        "confidence": "indicative"
+      },
+      {
+        "component_id": "dht22",
+        "name": "DHT22 Temperature & Humidity Sensor",
+        "quantity": 1,
+        "unit_price_inr": 200.0,
+        "subtotal_inr": 200.0,
+        "price_source": "catalog_estimate",
+        "price_verified_date": "2025-01-01",
+        "confidence": "indicative"
+      },
+      {
+        "component_id": "led_red",
+        "name": "Red LED",
+        "quantity": 1,
+        "unit_price_inr": 5.0,
+        "subtotal_inr": 5.0,
+        "price_source": "catalog_estimate",
+        "price_verified_date": "2025-01-01",
+        "confidence": "indicative"
+      },
+      {
+        "component_id": "resistor_220",
+        "name": "220Ω Resistor",
+        "quantity": 1,
+        "unit_price_inr": 1.0,
+        "subtotal_inr": 1.0,
+        "price_source": "catalog_estimate",
+        "price_verified_date": "2025-01-01",
+        "confidence": "indicative"
+      },
+      {
+        "component_id": "buzzer",
+        "name": "Active Buzzer",
+        "quantity": 1,
+        "unit_price_inr": 20.0,
+        "subtotal_inr": 20.0,
+        "price_source": "catalog_estimate",
+        "price_verified_date": "2025-01-01",
+        "confidence": "indicative"
+      },
+      {
+        "component_id": "push_button",
+        "name": "Tactile Push Button",
+        "quantity": 1,
+        "unit_price_inr": 5.0,
+        "subtotal_inr": 5.0,
+        "price_source": "catalog_estimate",
+        "price_verified_date": "2025-01-01",
+        "confidence": "indicative"
+      },
+      {
+        "component_id": "potentiometer_10k",
+        "name": "10kΩ Potentiometer",
+        "quantity": 1,
+        "unit_price_inr": 15.0,
+        "subtotal_inr": 15.0,
+        "price_source": "catalog_estimate",
+        "price_verified_date": "2025-01-01",
+        "confidence": "indicative"
+      }
+    ],
+    "total_inr": 596.0,
+    "currency": "INR",
+    "generated_at": "2026-10-10T08:57:00.942739",
+    "note": "Prices are indicative catalog estimates as of the verification date. Verify current prices before purchasing. Prices may vary by supplier."
+  },
+  "created_at": "2026-10-10T08:56:15.017302",
+  "updated_at": "2026-10-10T08:57:00.942958",
+  "error_message": null,
+  "workspace_path": "/Users/devanshvpurohit/Downloads/VNR-main/circuitforge/workspace/projects/7e4bb2b5-1353-48ad-8467-70d56a0d1737"
+}

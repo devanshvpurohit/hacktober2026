@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "author": "CircuitForge AI",
+  "editor": "wokwi",
+  "parts": [
+    {
+      "id": "board",
+      "type": "wokwi-esp32-devkit-v1",
+      "top": 100,
+      "left": 200,
+      "attrs": {}
+    },
+    {
+      "id": "btn_1",
+      "type": "wokwi-pushbutton",
+      "top": 350,
+      "left": 50,
+      "attrs": {}
+    },
+    {
+      "id": "led_1",
+      "type": "wokwi-led",
+      "top": 350,
+      "left": 200,
+      "attrs": {
+        "color": "red"
+      }
+    },
+    {
+      "id": "r1",
+      "type": "wokwi-resistor",
+      "top": 350,
+      "left": 350,
+      "attrs": {
+        "resistance": "220"
+      }
+    }
+  ],
+  "connections": [
+    [
+      "board:GPIO13",
+      "servo_1:SIG",
+      "green",
+      []
+    ],
+    [
+      "board:GPIO12",
+      "btn_1:1.l",
+      "green",
+      []
+    ],
+    [
+      "board:GPIO2",
+      "led_1:A",
+      "green",
+      []
+    ]
+  ]
+}

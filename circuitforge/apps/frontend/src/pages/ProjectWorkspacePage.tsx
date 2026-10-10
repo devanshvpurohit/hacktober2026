@@ -7,6 +7,7 @@ import {
   Code2, Cpu as CircuitIcon, Package, FileText, Zap, Terminal
 } from 'lucide-react'
 import Editor from '@monaco-editor/react'
+import WokwiSimulator from '../components/WokwiSimulator'
 import {
   getProject, generateProject, validateProject,
   compileProject, repairProject, simulateProject,
@@ -429,8 +430,19 @@ function DiagramTab({ project }: { project: Project }) {
   if (!project.diagram_json) {
     return <EmptyState icon={CircuitIcon} message="Diagram not yet generated." />
   }
+  
   return (
     <div className="space-y-4">
+      {/* Wokwi Simulator Component */}
+      {project.firmware_code && (
+        <WokwiSimulator
+          diagram={project.diagram_json}
+          firmware={project.firmware_code}
+          projectName={project.name}
+        />
+      )}
+      
+      {/* Diagram JSON Viewer */}
       <div className="forge-card p-5">
         <h3 className="text-sm font-semibold text-gray-400 uppercase mb-3">Wokwi Diagram — Parts</h3>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
@@ -442,6 +454,7 @@ function DiagramTab({ project }: { project: Project }) {
           ))}
         </div>
       </div>
+      
       <div className="forge-card overflow-hidden">
         <div className="flex items-center justify-between px-4 py-2 border-b border-gray-800">
           <span className="text-sm text-gray-400 font-mono">diagram.json</span>

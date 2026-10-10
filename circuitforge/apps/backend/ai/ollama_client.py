@@ -116,18 +116,101 @@ Respond with ONLY a valid JSON object with this exact structure:
   "threshold_unit": "Celsius"
 }}
 
-Only use components from the catalog. Only use valid ESP32 GPIO pins (not 6-11, not 34-39 for output).
+IMPORTANT INSTRUCTIONS:
+1. If the requested components are in the catalog, use them directly.
+2. If components are NOT in the catalog, you can still create a plan using best-guess catalog_id names (e.g., "servo_motor", "lcd_display", "relay_module").
+3. For missing components, add them to the "missing_info" array with format: "Component XYZ not in catalog - suggested alternative: ABC"
+4. Only use valid ESP32 GPIO pins (not 6-11, not 34-39 for output).
+5. Be creative and flexible - accept ANY IoT project request and try to create a working plan.
 """
 
 
 def _deterministic_plan(user_request: str) -> tuple[ProjectSpec, str]:
+    """
+    Flexible deterministic planner that handles a wide variety of project requests.
+    Falls back to generic templates when specific patterns don't match.
+    """
     req_lower = user_request.lower()
     threshold = 30.0
     m = re.search(r"(\d+(?:\.\d+)?)\s*(?:degrees?|°)?\s*(celsius|centigrade|C\b|fahrenheit|F\b|cm\b|centimeters?)", user_request, re.IGNORECASE)
     if m:
         threshold = float(m.group(1))
 
-    if "distance" in req_lower or "ultrasonic" in req_lower or "sr04" in req_lower:
+    # Servo / Motor Projects
+    if "servo" in req_lower or ("motor" in req_lower and "stepper" not in req_lower):
+        spec = ProjectSpec(
+            name="ESP32 Servo Control System",
+            description="ESP32 servo motor control with button input",
+            behavior="Controls servo motor position based on button presses. Button cycles servo through different positions (0°, 90°, 180°).",
+            board=BoardType.ESP32,
+            components=[
+                ComponentInstance(instance_id="servo_1", catalog_id="servo_motor", name="Servo Motor SG90", quantity=1),
+                ComponentInstance(instance_id="btn_1", catalog_id="push_button", name="Push Button", quantity=1),
+                ComponentInstance(instance_id="led_1", catalog_id="led_red", name="Status LED", quantity=1),
+                ComponentInstance(instance_id="r1", catalog_id="resistor_220", name="220 Ohm Resistor", quantity=1, value="220"),
+            ],
+            pin_assignments=[
+                PinAssignment(component_id="servo_motor", component_instance="servo_1", component_pin="SIG", gpio_pin=13, description="Servo control signal (PWM)"),
+                PinAssignment(component_id="push_button", component_instance="btn_1", component_pin="1.l", gpio_pin=12, description="Button input"),
+                PinAssignment(component_id="led_red", component_instance="led_1", component_pin="A", gpio_pin=2, description="Status LED"),
+            ],
+            connections=[],
+            libraries=["ESP32Servo"],
+            acceptance_criteria=["Control servo position with button", "Button cycles servo through 0°, 90°, 180°", "LED indicates servo movement"],
+            warnings=["Servo motor (servo_motor) not in standard catalog - using generic SG90 servo", "Servo may require external 5V power supply if moving under load"],
+            missing_info=["Servo motor component catalog entry needed for BOM pricing"],
+        )
+    
+    # LCD / Display Projects
+    elif "lcd" in req_lower or "display" in req_lower or "oled" in req_lower:
+        spec = ProjectSpec(
+            name="ESP32 LCD Display System",
+            description="ESP32 with LCD/OLED display showing sensor data or messages",
+            behavior="Displays real-time data or messages on LCD/OLED screen",
+            board=BoardType.ESP32,
+            components=[
+                ComponentInstance(instance_id="display_1", catalog_id="lcd_display", name="LCD Display", quantity=1),
+                ComponentInstance(instance_id="dht_1", catalog_id="dht22", name="DHT22 Sensor", quantity=1),
+            ],
+            pin_assignments=[
+                PinAssignment(component_id="lcd_display", component_instance="display_1", component_pin="SDA", gpio_pin=21, description="I2C Data"),
+                PinAssignment(component_id="lcd_display", component_instance="display_1", component_pin="SCL", gpio_pin=22, description="I2C Clock"),
+                PinAssignment(component_id="dht22", component_instance="dht_1", component_pin="SDA", gpio_pin=4, description="DHT22 Data"),
+            ],
+            connections=[],
+            libraries=["LiquidCrystal_I2C", "DHT sensor library"],
+            acceptance_criteria=["Display data on LCD", "Read sensor values"],
+            warnings=["[OFFLINE MODE] Ollama offline. Generated from flexible catalog template."],
+            missing_info=["LCD display (lcd_display) not in standard catalog - I2C LCD assumed"],
+        )
+    
+    # Relay / Switch Projects
+    elif "relay" in req_lower or "switch" in req_lower and "lamp" in req_lower or "appliance" in req_lower:
+        spec = ProjectSpec(
+            name="ESP32 Relay Control System",
+            description="ESP32 controlling relay for appliance switching",
+            behavior="Switches relay on/off based on sensor input or timer",
+            board=BoardType.ESP32,
+            components=[
+                ComponentInstance(instance_id="relay_1", catalog_id="relay_module", name="Relay Module", quantity=1),
+                ComponentInstance(instance_id="btn_1", catalog_id="push_button", name="Push Button", quantity=1),
+                ComponentInstance(instance_id="led_1", catalog_id="led_red", name="Status LED", quantity=1),
+                ComponentInstance(instance_id="r1", catalog_id="resistor_220", name="220 Ohm Resistor", quantity=1, value="220"),
+            ],
+            pin_assignments=[
+                PinAssignment(component_id="relay_module", component_instance="relay_1", component_pin="SIG", gpio_pin=13, description="Relay control"),
+                PinAssignment(component_id="push_button", component_instance="btn_1", component_pin="1.l", gpio_pin=12, description="Button input"),
+                PinAssignment(component_id="led_red", component_instance="led_1", component_pin="A", gpio_pin=2, description="Status LED"),
+            ],
+            connections=[],
+            libraries=[],
+            acceptance_criteria=["Control relay switching", "Button triggers relay"],
+            warnings=["[OFFLINE MODE] Ollama offline. Generated from flexible catalog template.", "WARNING: Ensure relay is rated for intended load"],
+            missing_info=["Relay module (relay_module) not in standard catalog - 5V relay assumed"],
+        )
+    
+    # Distance / Ultrasonic Projects
+    elif "distance" in req_lower or "ultrasonic" in req_lower or "sr04" in req_lower:
         act_thresh = threshold if threshold != 30.0 else 20.0
         spec = ProjectSpec(
             name="Ultrasonic Distance Warning System",
@@ -153,6 +236,8 @@ def _deterministic_plan(user_request: str) -> tuple[ProjectSpec, str]:
             threshold_value=act_thresh,
             threshold_unit="cm"
         )
+    
+    # Environmental / Potentiometer Projects
     elif "potentiometer" in req_lower or "environmental" in req_lower:
         spec = ProjectSpec(
             name="Dynamic Environmental Monitor",
@@ -179,28 +264,55 @@ def _deterministic_plan(user_request: str) -> tuple[ProjectSpec, str]:
             threshold_value=threshold,
             threshold_unit="Celsius"
         )
+    
+    # Generic fallback for any other project
     else:
+        # Extract likely component keywords from the request
+        missing_components = []
+        description = f"ESP32-based {user_request[:50]}"
+        
+        # Always include basic components for a generic project
+        components = [
+            ComponentInstance(instance_id="led_1", catalog_id="led_red", name="Status LED", quantity=1),
+            ComponentInstance(instance_id="r1", catalog_id="resistor_220", name="220 Ohm Resistor", quantity=1, value="220"),
+        ]
+        
+        pin_assignments = [
+            PinAssignment(component_id="led_red", component_instance="led_1", component_pin="A", gpio_pin=2, description="Status LED"),
+        ]
+        
+        # Add sensor if temperature/humidity mentioned
+        if "temp" in req_lower or "humidity" in req_lower or "sensor" in req_lower:
+            components.append(ComponentInstance(instance_id="dht22_1", catalog_id="dht22", name="DHT22 Sensor", quantity=1))
+            pin_assignments.append(PinAssignment(component_id="dht22", component_instance="dht22_1", component_pin="SDA", gpio_pin=4, description="DHT22 Data"))
+        
+        # Add buzzer if alarm/alert/sound mentioned
+        if "alarm" in req_lower or "alert" in req_lower or "buzzer" in req_lower or "sound" in req_lower:
+            components.append(ComponentInstance(instance_id="buzzer_1", catalog_id="buzzer", name="Active Buzzer", quantity=1))
+            pin_assignments.append(PinAssignment(component_id="buzzer", component_instance="buzzer_1", component_pin="+", gpio_pin=19, description="Buzzer Signal"))
+        
+        # Add button if input/button mentioned
+        if "button" in req_lower or "input" in req_lower:
+            components.append(ComponentInstance(instance_id="btn_1", catalog_id="push_button", name="Push Button", quantity=1))
+            pin_assignments.append(PinAssignment(component_id="push_button", component_instance="btn_1", component_pin="1.l", gpio_pin=12, description="Button input"))
+        
         spec = ProjectSpec(
-            name="ESP32 Temperature Monitor",
-            description="ESP32 temperature monitor using DHT22 and LED indicator",
-            behavior=f"Reads DHT22 sensor; illuminates red LED when temperature exceeds {threshold} °C",
+            name=f"Custom {user_request[:30].strip().title()}",
+            description=description,
+            behavior=f"Custom IoT project: {user_request[:100]}",
             board=BoardType.ESP32,
-            components=[
-                ComponentInstance(instance_id="dht22_1", catalog_id="dht22", name="DHT22 Sensor", quantity=1),
-                ComponentInstance(instance_id="led_1", catalog_id="led_red", name="Red LED", quantity=1),
-                ComponentInstance(instance_id="r1", catalog_id="resistor_220", name="220 Ohm Resistor", quantity=1, value="220"),
-            ],
-            pin_assignments=[
-                PinAssignment(component_id="dht22", component_instance="dht22_1", component_pin="SDA", gpio_pin=4, description="DHT22 Data"),
-                PinAssignment(component_id="led_red", component_instance="led_1", component_pin="A", gpio_pin=2, description="LED Anode"),
-            ],
+            components=components,
+            pin_assignments=pin_assignments,
             connections=[],
-            libraries=["DHT sensor library", "Adafruit Unified Sensor"],
-            acceptance_criteria=["Read DHT22 every 2s", f"Turn on LED when temp exceeds {threshold} °C"],
-            warnings=["[OFFLINE MODE] Ollama offline. Generated from verified catalog template."],
+            libraries=[],
+            acceptance_criteria=[f"Implement: {user_request[:100]}"],
+            warnings=["[OFFLINE MODE] Ollama offline. Generated from generic flexible template.", 
+                     "[CUSTOM PROJECT] This is a flexible template - firmware may need manual adjustments"],
+            missing_info=missing_components if missing_components else ["Custom project - some components may not be in catalog"],
             threshold_value=threshold,
             threshold_unit="Celsius"
         )
+    
     return spec, json.dumps(spec.model_dump(), indent=2)
 
 
@@ -210,6 +322,20 @@ async def plan_project(user_request: str) -> tuple[ProjectSpec, str]:
     Falls back to verified deterministic catalog planner if Ollama is unreachable.
     Returns (ProjectSpec, raw_response_text).
     """
+    # Check for specific keywords that have better deterministic templates
+    req_lower = user_request.lower()
+    use_deterministic = any([
+        "servo" in req_lower,
+        "motor" in req_lower and "stepper" not in req_lower,
+        "lcd" in req_lower,
+        "oled" in req_lower,
+        "relay" in req_lower,
+    ])
+    
+    # If we have a good template, use it directly
+    if use_deterministic:
+        return _deterministic_plan(user_request)
+    
     catalog_ids = list(CATALOG.keys())
     prompt = PLAN_PROMPT_TEMPLATE.format(
         catalog_ids=json.dumps(catalog_ids),
@@ -293,6 +419,8 @@ Requirements:
 - Use Serial.begin(115200) in setup()
 - Print sensor readings to Serial
 - Follow exact pin assignments provided above
+- If a component is not in the standard library, use best-effort generic code (e.g., digitalWrite for relays, analogWrite for servos)
+- Be creative and flexible - generate working code even for components not in standard Arduino libraries
 
 Generate ONLY the Arduino C++ code, starting with the #include statements.
 Do NOT add explanations outside the code. The output must compile with Arduino CLI for ESP32.
@@ -300,11 +428,150 @@ Do NOT add explanations outside the code. The output must compile with Arduino C
 
 
 def _deterministic_firmware(spec: ProjectSpec) -> str:
+    """
+    Generate firmware for various project types, with flexible fallback for unknown components.
+    """
     pins = {pa.component_pin.upper(): pa.gpio_pin for pa in spec.pin_assignments}
     thresh = spec.threshold_value if spec.threshold_value is not None else 30.0
     comp_ids = {c.catalog_id for c in spec.components}
+    
+    # Servo motor projects
+    if "servo_motor" in comp_ids:
+        servo_pin = pins.get("SIG", 13)
+        button_pin = pins.get("1.L", 12)
+        return f"""/*
+ * Auto-generated by CircuitForge AI (Flexible Generator)
+ * Project: {spec.name}
+ */
+#include <Arduino.h>
+#include <ESP32Servo.h>
 
-    if "hc_sr04" in comp_ids:
+#define SERVO_PIN {servo_pin}
+#define BUTTON_PIN {button_pin}
+
+Servo myServo;
+int servoPos = 90;
+
+void setup() {{
+  Serial.begin(115200);
+  pinMode(BUTTON_PIN, INPUT_PULLUP);
+  myServo.attach(SERVO_PIN);
+  myServo.write(servoPos);
+  Serial.println(F("CircuitForge AI - Servo Control System Initialized"));
+}}
+
+void loop() {{
+  if (digitalRead(BUTTON_PIN) == LOW) {{
+    servoPos = (servoPos + 30) % 180;
+    myServo.write(servoPos);
+    Serial.print(F("Servo Position: "));
+    Serial.println(servoPos);
+    delay(500);
+  }}
+  delay(50);
+}}
+"""
+    
+    # LCD Display projects
+    elif "lcd_display" in comp_ids:
+        dht_pin = pins.get("SDA", 4)  # DHT sensor
+        return f"""/*
+ * Auto-generated by CircuitForge AI (Flexible Generator)
+ * Project: {spec.name}
+ */
+#include <Arduino.h>
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+#include <DHT.h>
+
+#define DHTPIN {dht_pin}
+#define DHTTYPE DHT22
+
+LiquidCrystal_I2C lcd(0x27, 16, 2);
+DHT dht(DHTPIN, DHTTYPE);
+
+void setup() {{
+  Serial.begin(115200);
+  lcd.init();
+  lcd.backlight();
+  dht.begin();
+  lcd.setCursor(0, 0);
+  lcd.print("CircuitForge AI");
+  delay(2000);
+  Serial.println(F("CircuitForge AI - LCD Display System Initialized"));
+}}
+
+void loop() {{
+  float t = dht.readTemperature();
+  float h = dht.readHumidity();
+  
+  if (!isnan(t) && !isnan(h)) {{
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Temp: ");
+    lcd.print(t, 1);
+    lcd.print(" C");
+    lcd.setCursor(0, 1);
+    lcd.print("Humidity: ");
+    lcd.print(h, 1);
+    lcd.print("%");
+    
+    Serial.print(F("Temp: "));
+    Serial.print(t);
+    Serial.print(F(" C | Humidity: "));
+    Serial.print(h);
+    Serial.println(F(" %"));
+  }}
+  delay(2000);
+}}
+"""
+    
+    # Relay projects
+    elif "relay_module" in comp_ids:
+        relay_pin = pins.get("SIG", 13)
+        button_pin = pins.get("1.L", 12)
+        led_pin = pins.get("A", 2)
+        return f"""/*
+ * Auto-generated by CircuitForge AI (Flexible Generator)
+ * Project: {spec.name}
+ */
+#include <Arduino.h>
+
+#define RELAY_PIN {relay_pin}
+#define BUTTON_PIN {button_pin}
+#define LED_PIN {led_pin}
+
+bool relayState = false;
+
+void setup() {{
+  Serial.begin(115200);
+  pinMode(RELAY_PIN, OUTPUT);
+  pinMode(BUTTON_PIN, INPUT_PULLUP);
+  pinMode(LED_PIN, OUTPUT);
+  digitalWrite(RELAY_PIN, LOW);
+  digitalWrite(LED_PIN, LOW);
+  Serial.println(F("CircuitForge AI - Relay Control System Initialized"));
+}}
+
+void loop() {{
+  static bool lastButtonState = HIGH;
+  bool buttonState = digitalRead(BUTTON_PIN);
+  
+  if (buttonState == LOW && lastButtonState == HIGH) {{
+    relayState = !relayState;
+    digitalWrite(RELAY_PIN, relayState ? HIGH : LOW);
+    digitalWrite(LED_PIN, relayState ? HIGH : LOW);
+    Serial.print(F("Relay: "));
+    Serial.println(relayState ? "ON" : "OFF");
+    delay(200); // Debounce
+  }}
+  lastButtonState = buttonState;
+  delay(50);
+}}
+"""
+    
+    # Distance sensor projects
+    elif "hc_sr04" in comp_ids:
         trig = pins.get("TRIG", 5)
         echo = pins.get("ECHO", 18)
         buzzer = pins.get("+", 19)
@@ -351,6 +618,8 @@ void loop() {{
   delay(200);
 }}
 """
+    
+    # Environmental monitor with potentiometer
     elif "potentiometer_10k" in comp_ids and "dht22" in comp_ids:
         dht_pin = pins.get("SDA", 4)
         pot_pin = pins.get("SIG", 34)
@@ -404,9 +673,13 @@ void loop() {{
   }}
 }}
 """
-    else:
+    
+    # Environmental monitor with potentiometer
+    elif "potentiometer_10k" in comp_ids and "dht22" in comp_ids:
         dht_pin = pins.get("SDA", 4)
+        pot_pin = pins.get("SIG", 34)
         led_pin = pins.get("A", 2)
+        buzzer_pin = pins.get("+", 19)
         return f"""/*
  * Auto-generated by CircuitForge AI (Deterministic Catalog Generator)
  * Project: {spec.name}
@@ -416,50 +689,139 @@ void loop() {{
 
 #define DHTPIN {dht_pin}
 #define DHTTYPE DHT22
+#define POT_PIN {pot_pin}
 #define LED_PIN {led_pin}
+#define BUZZER_PIN {buzzer_pin}
 
-const float TEMP_THRESHOLD = {thresh};
 DHT dht(DHTPIN, DHTTYPE);
 
 void setup() {{
   Serial.begin(115200);
   pinMode(LED_PIN, OUTPUT);
+  pinMode(BUZZER_PIN, OUTPUT);
+  pinMode(POT_PIN, INPUT);
   digitalWrite(LED_PIN, LOW);
+  digitalWrite(BUZZER_PIN, LOW);
   dht.begin();
-  Serial.println(F("CircuitForge AI - ESP32 Temperature Monitor Initialized"));
+  Serial.println(F("CircuitForge AI - Dynamic Environmental Monitor Initialized"));
 }}
 
 void loop() {{
   delay(2000);
+  int potVal = analogRead(POT_PIN);
+  float dynamicThreshold = 20.0 + (potVal / 4095.0) * 25.0;
   float t = dht.readTemperature();
   float h = dht.readHumidity();
 
-  if (isnan(t) || isnan(h)) {{
-    Serial.println(F("[ERROR] Failed to read from DHT22 sensor"));
-    return;
-  }}
-
-  Serial.print(F("Temperature: "));
-  Serial.print(t, 1);
-  Serial.print(F(" °C  |  Humidity: "));
-  Serial.print(h, 1);
-  Serial.println(F(" %"));
-
-  if (t > TEMP_THRESHOLD) {{
-    digitalWrite(LED_PIN, HIGH);
-  }} else {{
-    digitalWrite(LED_PIN, LOW);
+  if (!isnan(t)) {{
+    Serial.print(F("Temp: "));
+    Serial.print(t);
+    Serial.print(F(" C | Threshold: "));
+    Serial.println(dynamicThreshold);
+    if (t > dynamicThreshold) {{
+      digitalWrite(LED_PIN, HIGH);
+      digitalWrite(BUZZER_PIN, HIGH);
+    }} else {{
+      digitalWrite(LED_PIN, LOW);
+      digitalWrite(BUZZER_PIN, LOW);
+    }}
   }}
 }}
 """
+    
+    # Generic fallback for any other project type
+    else:
+        # Build a generic firmware based on what components we have
+        includes = ["#include <Arduino.h>"]
+        defines = []
+        setup_code = ["  Serial.begin(115200);"]
+        loop_code = []
+        
+        # Check for DHT sensor
+        if "dht22" in comp_ids:
+            includes.append("#include <DHT.h>")
+            dht_pin = pins.get("SDA", 4)
+            defines.append(f"#define DHTPIN {dht_pin}")
+            defines.append("#define DHTTYPE DHT22")
+            defines.append("DHT dht(DHTPIN, DHTTYPE);")
+            setup_code.append("  dht.begin();")
+            loop_code.append("""  float t = dht.readTemperature();
+  float h = dht.readHumidity();
+  if (!isnan(t)) {{
+    Serial.print(F("Temp: "));
+    Serial.print(t);
+    Serial.print(F(" C | Humidity: "));
+    Serial.print(h);
+    Serial.println(F(" %"));
+  }}""")
+        
+        # Check for LED
+        if "led_red" in comp_ids:
+            led_pin = pins.get("A", 2)
+            defines.append(f"#define LED_PIN {led_pin}")
+            setup_code.append(f"  pinMode(LED_PIN, OUTPUT);")
+            setup_code.append("  digitalWrite(LED_PIN, LOW);")
+            loop_code.append("  digitalWrite(LED_PIN, HIGH);")
+        
+        # Check for buzzer
+        if "buzzer" in comp_ids:
+            buzzer_pin = pins.get("+", 19)
+            defines.append(f"#define BUZZER_PIN {buzzer_pin}")
+            setup_code.append(f"  pinMode(BUZZER_PIN, OUTPUT);")
+            setup_code.append("  digitalWrite(BUZZER_PIN, LOW);")
+        
+        # Check for button
+        if "push_button" in comp_ids:
+            button_pin = pins.get("1.L", 12)
+            defines.append(f"#define BUTTON_PIN {button_pin}")
+            setup_code.append(f"  pinMode(BUTTON_PIN, INPUT_PULLUP);")
+            loop_code.append("""  if (digitalRead(BUTTON_PIN) == LOW) {{
+    Serial.println(F("Button pressed"));
+    delay(200);
+  }}""")
+        
+        setup_code.append(f'  Serial.println(F("CircuitForge AI - {spec.name} Initialized"));')
+        
+        if not loop_code:
+            loop_code.append('  Serial.println(F("System running..."));')
+        
+        loop_code.append("  delay(1000);")
+        
+        code = "\n".join(includes) + "\n\n"
+        code += "/*\n * Auto-generated by CircuitForge AI (Generic Flexible Generator)\n"
+        code += f" * Project: {spec.name}\n"
+        code += " * NOTE: This is a generic template - customize as needed\n */\n\n"
+        code += "\n".join(defines) + "\n\n"
+        code += "void setup() {\n"
+        code += "\n".join(setup_code) + "\n"
+        code += "}\n\n"
+        code += "void loop() {\n"
+        code += "\n".join(loop_code) + "\n"
+        code += "}\n"
+        
+        return code
 
 
 async def generate_firmware(spec: ProjectSpec) -> tuple[str, str]:
     """
     Use Arduino-Coder-0.5B to generate firmware.
     Falls back to verified catalog template if Ollama is unreachable.
+    For known component types (servo, LCD, relay), prefer deterministic generator.
     Returns (firmware_code, raw_response).
     """
+    # Check if we have specific component types that benefit from deterministic generation
+    comp_ids = {c.catalog_id for c in spec.components}
+    use_deterministic = any([
+        "servo_motor" in comp_ids,
+        "lcd_display" in comp_ids,
+        "relay_module" in comp_ids,
+    ])
+    
+    # If we have a good template, use it directly
+    if use_deterministic:
+        fw = _deterministic_firmware(spec)
+        return fw, fw
+    
     pin_lines = "\n".join(
         f"  - {pa.component_instance}.{pa.component_pin} -> GPIO{pa.gpio_pin} ({pa.description})"
         for pa in spec.pin_assignments

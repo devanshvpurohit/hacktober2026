@@ -1,0 +1,20 @@
+{
+  "id": "0c322594-7fad-4acc-82fb-fbfe874541fe",
+  "name": "New Project",
+  "description": "Generating from your request...",
+  "user_request": "Build a servo motor control with a button",
+  "status": "planning",
+  "simulation_status": "not_simulated",
+  "spec": null,
+  "firmware_code": null,
+  "diagram_json": null,
+  "validation_result": null,
+  "compilation_success": null,
+  "compilation_log": null,
+  "repair_attempts": [],
+  "bom": null,
+  "created_at": "2026-10-10T08:54:03.813772",
+  "updated_at": "2026-10-10T08:54:03.839883",
+  "error_message": null,
+  "workspace_path": "/Users/devanshvpurohit/Downloads/VNR-main/circuitforge/workspace/projects/0c322594-7fad-4acc-82fb-fbfe874541fe"
+}

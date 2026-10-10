@@ -1,0 +1,7 @@
+[wokwi]
+version = 1
+firmware = "build/Simple_Servo_Motor_with_Button_Control.ino.bin"
+elf = "build/Simple_Servo_Motor_with_Button_Control.ino.elf"
+
+[esp32]
+# ESP32 board configuration

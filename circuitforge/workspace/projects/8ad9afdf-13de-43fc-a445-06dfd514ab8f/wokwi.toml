@@ -1,0 +1,7 @@
+[wokwi]
+version = 1
+firmware = "build/ESP32_LCD_Display_System.ino.bin"
+elf = "build/ESP32_LCD_Display_System.ino.elf"
+
+[esp32]
+# ESP32 board configuration

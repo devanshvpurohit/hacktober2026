@@ -500,6 +500,43 @@ async def repair_project(project_id: str):
 
 # ── Simulate ──────────────────────────────────────────────────────────────────
 
+@app.get("/api/projects/{project_id}/wokwi-url")
+async def get_wokwi_url(project_id: str):
+    """
+    Generate a Wokwi simulator URL for the project.
+    Returns URL and instructions for opening the project in Wokwi.
+    """
+    _validate_project_id(project_id)
+    project = await get_project(project_id)
+    if project is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+    if not project.diagram_json or not project.firmware_code:
+        raise HTTPException(status_code=400, detail="Project needs both diagram and firmware to simulate")
+    
+    # Generate Wokwi project data
+    wokwi_data = {
+        "version": 1,
+        "author": "CircuitForge AI",
+        "editor": "wokwi",
+        "parts": project.diagram_json.get("parts", []),
+        "connections": project.diagram_json.get("connections", []),
+    }
+    
+    return {
+        "wokwi_url": "https://wokwi.com/",
+        "project_data": wokwi_data,
+        "firmware": project.firmware_code,
+        "instructions": [
+            "1. Open https://wokwi.com/",
+            "2. Start a new ESP32 project",
+            "3. Click on 'diagram.json' tab and paste the project_data",
+            "4. Paste the firmware code into sketch.ino",
+            "5. Click ▶ Play to simulate"
+        ],
+        "note": "Wokwi doesn't support direct URL embedding with custom circuits. Use the manual process above."
+    }
+
+
 @app.post("/api/projects/{project_id}/simulate")
 async def simulate_project(project_id: str):
     _validate_project_id(project_id)

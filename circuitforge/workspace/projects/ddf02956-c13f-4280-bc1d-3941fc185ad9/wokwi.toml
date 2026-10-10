@@ -1,0 +1,7 @@
+[wokwi]
+version = 1
+firmware = "build/ESP32_TFT_to_DHT22_&_LED_Control_Project.ino.bin"
+elf = "build/ESP32_TFT_to_DHT22_&_LED_Control_Project.ino.elf"
+
+[esp32]
+# ESP32 board configuration
