@@ -4,7 +4,7 @@
   "description": "ESP32 with LCD/OLED display showing sensor data or messages",
   "user_request": "oled display with esp32",
   "status": "generated",
-  "simulation_status": "not_simulated",
+  "simulation_status": "manual_verification_required",
   "spec": {
     "name": "ESP32 LCD Display System",
     "description": "ESP32 with LCD/OLED display showing sensor data or messages",
@@ -169,7 +169,7 @@
     "note": "Prices are indicative catalog estimates as of the verification date. Verify current prices before purchasing. Prices may vary by supplier."
   },
   "created_at": "2026-10-10T09:05:32.485226",
-  "updated_at": "2026-10-10T09:07:26.768251",
+  "updated_at": "2026-10-10T09:14:58.998385",
   "error_message": null,
   "workspace_path": "/Users/devanshvpurohit/Downloads/VNR-main/circuitforge/workspace/projects/8ad9afdf-13de-43fc-a445-06dfd514ab8f"
 }

@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import Editor from '@monaco-editor/react'
 import WokwiSimulator from '../components/WokwiSimulator'
+import WokwiEmbedSimulator from '../components/WokwiEmbedSimulator'
 import {
   getProject, generateProject, validateProject,
   compileProject, repairProject, simulateProject,
@@ -427,47 +428,78 @@ function FirmwareTab({ project }: { project: Project }) {
 }
 
 function DiagramTab({ project }: { project: Project }) {
+  const [activeView, setActiveView] = useState<'simulator' | 'json'>('simulator')
+  
   if (!project.diagram_json) {
     return <EmptyState icon={CircuitIcon} message="Diagram not yet generated." />
   }
   
   return (
     <div className="space-y-4">
-      {/* Wokwi Simulator Component */}
-      {project.firmware_code && (
-        <WokwiSimulator
+      {/* View Tabs */}
+      <div className="flex gap-2 border-b border-gray-800 pb-2">
+        <button
+          onClick={() => setActiveView('simulator')}
+          className={`px-4 py-2 rounded-t-lg text-sm font-medium transition-colors ${
+            activeView === 'simulator'
+              ? 'bg-cyan-600/20 text-cyan-400 border-b-2 border-cyan-400'
+              : 'text-gray-500 hover:text-gray-300'
+          }`}
+        >
+          🔌 Simulator
+        </button>
+        <button
+          onClick={() => setActiveView('json')}
+          className={`px-4 py-2 rounded-t-lg text-sm font-medium transition-colors ${
+            activeView === 'json'
+              ? 'bg-cyan-600/20 text-cyan-400 border-b-2 border-cyan-400'
+              : 'text-gray-500 hover:text-gray-300'
+          }`}
+        >
+          📄 Diagram JSON
+        </button>
+      </div>
+
+      {/* Wokwi Embedded Simulator */}
+      {activeView === 'simulator' && project.firmware_code && (
+        <WokwiEmbedSimulator
           diagram={project.diagram_json}
           firmware={project.firmware_code}
           projectName={project.name}
+          projectId={project.id}
         />
       )}
       
-      {/* Diagram JSON Viewer */}
-      <div className="forge-card p-5">
-        <h3 className="text-sm font-semibold text-gray-400 uppercase mb-3">Wokwi Diagram — Parts</h3>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          {project.diagram_json.parts?.map((part: any, i: number) => (
-            <div key={i} className="bg-gray-800 rounded-lg p-3">
-              <div className="text-sm text-white font-mono">{part.id}</div>
-              <div className="text-xs text-cyan-400 mt-0.5">{part.type}</div>
+      {/* JSON View */}
+      {activeView === 'json' && (
+        <>
+          <div className="forge-card p-5">
+            <h3 className="text-sm font-semibold text-gray-400 uppercase mb-3">Wokwi Diagram — Parts</h3>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              {project.diagram_json.parts?.map((part: any, i: number) => (
+                <div key={i} className="bg-gray-800 rounded-lg p-3">
+                  <div className="text-sm text-white font-mono">{part.id}</div>
+                  <div className="text-xs text-cyan-400 mt-0.5">{part.type}</div>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      </div>
-      
-      <div className="forge-card overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-2 border-b border-gray-800">
-          <span className="text-sm text-gray-400 font-mono">diagram.json</span>
-          <span className="text-xs text-gray-600">{project.diagram_json.connections?.length ?? 0} connections</span>
-        </div>
-        <Editor
-          height="400px"
-          language="json"
-          value={JSON.stringify(project.diagram_json, null, 2)}
-          theme="vs-dark"
-          options={{ readOnly: true, fontSize: 12, minimap: { enabled: false }, fontFamily: 'JetBrains Mono, monospace' }}
-        />
-      </div>
+          </div>
+          
+          <div className="forge-card overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-2 border-b border-gray-800">
+              <span className="text-sm text-gray-400 font-mono">diagram.json</span>
+              <span className="text-xs text-gray-600">{project.diagram_json.connections?.length ?? 0} connections</span>
+            </div>
+            <Editor
+              height="400px"
+              language="json"
+              value={JSON.stringify(project.diagram_json, null, 2)}
+              theme="vs-dark"
+              options={{ readOnly: true, fontSize: 12, minimap: { enabled: false }, fontFamily: 'JetBrains Mono, monospace' }}
+            />
+          </div>
+        </>
+      )}
     </div>
   )
 }

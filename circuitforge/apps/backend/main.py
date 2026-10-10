@@ -547,35 +547,53 @@ async def simulate_project(project_id: str):
     import shutil
     wokwi_path = shutil.which("wokwi-cli")
 
+    # Try alternative wokwi-cli locations
+    if not wokwi_path:
+        alternative_paths = [
+            "/usr/local/bin/wokwi-cli",
+            os.path.expanduser("~/.local/bin/wokwi-cli"),
+            os.path.expanduser("~/bin/wokwi-cli"),
+        ]
+        for path in alternative_paths:
+            if os.path.exists(path):
+                wokwi_path = path
+                break
+
     if wokwi_path is None:
+        # Wokwi CLI not available - return instructions for manual simulation
         project.simulation_status = SimulationStatus.MANUAL
         await update_project(project)
         return {
             "simulation_status": SimulationStatus.MANUAL.value,
             "mode": "manual",
-            "message": "wokwi-cli not installed. Use the Manual Wokwi workflow below.",
+            "message": "Wokwi CLI not installed. Use manual simulation or web-based simulator.",
             "manual_steps": [
-                "1. Open https://wokwi.com/",
-                "2. Create a new ESP32 project",
-                f"3. In your project workspace ({project.workspace_path}), find diagram.json and sketch.ino",
-                "4. Replace diagram.json with the generated file",
-                "5. Copy sketch.ino contents into the Wokwi editor",
-                "6. Click the ▶ Play button to simulate",
+                "1. Use the embedded simulator in the Diagram tab",
+                "2. Or open https://wokwi.com/",
+                "3. Create a new ESP32 project",
+                f"4. In your project workspace ({project.workspace_path}), find diagram.json and sketch.ino",
+                "5. Copy diagram.json content to Wokwi's diagram.json tab",
+                "6. Copy sketch.ino to Wokwi's code editor",
+                "7. Click the ▶ Play button to simulate",
             ],
             "wokwi_docs": "https://docs.wokwi.com/",
+            "install_wokwi_cli": "https://docs.wokwi.com/wokwi-ci/getting-started",
         }
 
-    # wokwi-cli is available
+    # wokwi-cli is available - run actual simulation
     project.simulation_status = SimulationStatus.RUNNING
     await update_project(project)
 
     try:
         from pathlib import Path
         ws = Path(project.workspace_path)
+        
+        # Run wokwi-cli with timeout
         proc = await asyncio.create_subprocess_exec(
-            wokwi_path, "run", "--timeout", "30", str(ws),
+            wokwi_path, "run", "--timeout", "30000", str(ws),
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
+            cwd=str(ws),
         )
         try:
             out, err = await asyncio.wait_for(proc.communicate(), timeout=60)
@@ -584,7 +602,11 @@ async def simulate_project(project_id: str):
             await proc.wait()
             project.simulation_status = SimulationStatus.FAILED
             await update_project(project)
-            return {"simulation_status": SimulationStatus.FAILED.value, "error": "Simulation timed out"}
+            return {
+                "simulation_status": SimulationStatus.FAILED.value,
+                "error": "Simulation timed out after 60 seconds",
+                "mode": "cli",
+            }
 
         stdout = out.decode("utf-8", errors="replace")[:10000]
         stderr = err.decode("utf-8", errors="replace")[:10000]
@@ -598,11 +620,17 @@ async def simulate_project(project_id: str):
             "exit_code": proc.returncode,
             "stdout": stdout,
             "stderr": stderr,
+            "mode": "cli",
+            "success": success,
         }
     except Exception as e:
         project.simulation_status = SimulationStatus.UNAVAILABLE
         await update_project(project)
-        return {"simulation_status": SimulationStatus.UNAVAILABLE.value, "error": str(e)}
+        return {
+            "simulation_status": SimulationStatus.UNAVAILABLE.value,
+            "error": str(e),
+            "mode": "cli",
+        }
 
 
 # ── Security helpers ──────────────────────────────────────────────────────────

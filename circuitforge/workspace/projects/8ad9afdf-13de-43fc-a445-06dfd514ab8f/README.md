@@ -9,7 +9,7 @@ oled display with esp32
 ## Status
 
 - Project Status: `generated`
-- Simulation Status: `not_simulated`
+- Simulation Status: `manual_verification_required`
 - Compilation: `Not compiled`
 
 ## Components
