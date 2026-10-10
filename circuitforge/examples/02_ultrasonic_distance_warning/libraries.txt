@@ -1,0 +1,1 @@
+# Standard Arduino core pulseIn functions used - no external library required

@@ -1,0 +1,21 @@
+/* === SURDAS Caregiver Dashboard - App-specific styles === */
+/* This file is intentionally minimal as we use Tailwind CSS for styling */
+
+/* Custom utility classes not covered by Tailwind */
+.backdrop-blur-custom {
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* Ensure smooth transitions for status changes */
+.status-transition {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Custom gradient text for brand consistency */
+.gradient-text {
+  background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}

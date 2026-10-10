@@ -1,0 +1,7 @@
+[wokwi]
+version = 1
+firmware = "build/sketch.ino.bin"
+elf = "build/sketch.ino.elf"
+
+[esp32]
+# ESP32 DevKit V1 configuration

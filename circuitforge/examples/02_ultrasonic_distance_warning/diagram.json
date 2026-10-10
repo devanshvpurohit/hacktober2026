@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "author": "CircuitForge AI",
+  "editor": "wokwi",
+  "parts": [
+    {
+      "type": "wokwi-esp32-devkit-v1",
+      "id": "esp",
+      "top": 0,
+      "left": 0,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-hc-sr04",
+      "id": "ultrasonic",
+      "top": -120,
+      "left": 160,
+      "attrs": { "distance": "15" }
+    },
+    {
+      "type": "wokwi-buzzer",
+      "id": "buzzer1",
+      "top": 120,
+      "left": 200,
+      "attrs": { "volume": "0.5" }
+    }
+  ],
+  "connections": [
+    [ "esp:TX", "$serialMonitor:RX", "", [] ],
+    [ "esp:RX", "$serialMonitor:TX", "", [] ],
+    [ "esp:VIN", "ultrasonic:VCC", "red", [ "v0" ] ],
+    [ "esp:GND", "ultrasonic:GND", "black", [ "v0" ] ],
+    [ "esp:D5", "ultrasonic:TRIG", "green", [ "v0" ] ],
+    [ "esp:D18", "ultrasonic:ECHO", "blue", [ "v0" ] ],
+    [ "esp:D19", "buzzer1:2", "orange", [ "v0" ] ],
+    [ "esp:GND", "buzzer1:1", "black", [ "v0" ] ]
+  ]
+}

@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CircuitForge AI — Local IoT Builder</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            cyan: { 400: '#22d3ee', 500: '#06b6d4', 600: '#0891b2' },
+            forge: { bg: '#0b0f19', card: '#111827', border: '#1f293d', text: '#e2e8f0', muted: '#94a3b8' }
+          },
+          fontFamily: {
+            mono: ['JetBrains Mono', 'Fira Code', 'Courier New', 'monospace'],
+            sans: ['Inter', 'system-ui', 'sans-serif']
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <style>
+    body { background-color: #0b0f19; color: #e2e8f0; font-family: 'Inter', system-ui, sans-serif; }
+    .circuit-grid {
+      background-image: linear-gradient(rgba(6, 182, 212, 0.04) 1px, transparent 1px),
+                        linear-gradient(90deg, rgba(6, 182, 212, 0.04) 1px, transparent 1px);
+      background-size: 32px 32px;
+    }
+    .forge-card { background-color: #111827; border: 1px solid #1f2937; border-radius: 0.75rem; }
+    .pulse-glow { animation: pulse 2s infinite ease-in-out; }
+    @keyframes pulse { 0%, 100% { opacity: 1; filter: drop-shadow(0 0 8px rgba(6,182,212,0.6)); } 50% { opacity: 0.6; filter: drop-shadow(0 0 2px rgba(6,182,212,0.2)); } }
+    pre, code { font-family: 'JetBrains Mono', monospace; }
+  </style>
+</head>
+<body class="min-h-screen circuit-grid flex flex-col">
+  <!-- Navbar -->
+  <nav class="border-b border-gray-800 bg-gray-900/90 backdrop-blur sticky top-0 z-50 px-6 py-3.5 flex items-center justify-between">
+    <div class="flex items-center gap-3 cursor-pointer" onclick="showView('home')">
+      <div class="w-9 h-9 rounded-lg bg-cyan-600 flex items-center justify-center text-white shadow-lg shadow-cyan-500/20">
+        <i class="fa-solid fa-microchip text-lg"></i>
+      </div>
+      <div>
+        <span class="text-xl font-bold tracking-tight text-white">CircuitForge <span class="text-cyan-400">AI</span></span>
+        <span class="text-[10px] ml-2 px-1.5 py-0.5 rounded bg-cyan-950 text-cyan-400 border border-cyan-800 uppercase tracking-widest font-mono">Local-First</span>
+      </div>
+    </div>
+    <div class="flex items-center gap-4 text-sm font-medium">
+      <button onclick="showView('home')" class="nav-btn text-gray-300 hover:text-cyan-400 transition flex items-center gap-1.5">
+        <i class="fa-solid fa-wand-magic-sparkles text-xs"></i> New Project
+      </button>
+      <button onclick="showView('projects')" class="nav-btn text-gray-300 hover:text-cyan-400 transition flex items-center gap-1.5">
+        <i class="fa-solid fa-folder text-xs"></i> Projects
+      </button>
+      <button onclick="showView('catalog')" class="nav-btn text-gray-300 hover:text-cyan-400 transition flex items-center gap-1.5">
+        <i class="fa-solid fa-cubes text-xs"></i> Catalog
+      </button>
+      <button onclick="showView('setup')" class="nav-btn text-gray-300 hover:text-cyan-400 transition flex items-center gap-1.5">
+        <i class="fa-solid fa-sliders text-xs"></i> System Setup
+      </button>
+    </div>
+  </nav>
+
+  <!-- Notification Toast -->
+  <div id="toast" class="fixed bottom-5 right-5 z-50 transform transition-all duration-300 translate-y-20 opacity-0 pointer-events-none flex items-center gap-3 px-4 py-3 rounded-lg shadow-xl text-sm border font-medium"></div>
+
+  <!-- Content Container -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-6">
+
+    <!-- VIEW: HOME (Prompt Input & Examples) -->
+    <section id="view-home" class="space-y-10 py-6">
+      <div class="text-center max-w-3xl mx-auto space-y-4">
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium bg-cyan-950 text-cyan-400 border border-cyan-800">
+          <span class="w-2 h-2 rounded-full bg-cyan-400 pulse-glow"></span>
+          Natural Language to Circuit, Firmware, Simulation & BOM
+        </div>
+        <h1 class="text-4xl sm:text-5xl font-extrabold text-white tracking-tight">
+          Design & Simulate IoT Circuits <br><span class="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">Entirely On Your Local Machine</span>
+        </h1>
+        <p class="text-gray-400 text-sm sm:text-base leading-relaxed">
+          Describe your microcontroller idea in plain English. CircuitForge AI generates structured pin assignments, deterministic Wokwi circuit diagrams, Arduino C++ firmware, and indicative BOMs.
+        </p>
+      </div>
+
+      <!-- Prompt Input Card -->
+      <div class="forge-card p-6 max-w-3xl mx-auto shadow-2xl border-gray-800 bg-gray-900/80">
+        <label for="promptInput" class="block text-sm font-semibold text-gray-300 mb-2 flex items-center justify-between">
+          <span>Project Requirement</span>
+          <span class="text-xs text-gray-500 font-normal">Examples below can be clicked</span>
+        </label>
+        <textarea id="promptInput" rows="4" class="w-full bg-gray-950 border border-gray-700 rounded-lg p-4 text-gray-100 placeholder-gray-500 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition" placeholder="e.g. Create an ESP32-based temperature monitor using a DHT22 sensor. Turn on an LED when the temperature exceeds 30 degrees Celsius."></textarea>
+        <div class="flex items-center justify-between mt-4">
+          <div class="text-xs text-gray-500">
+            <i class="fa-solid fa-lock text-cyan-500 mr-1"></i> Privacy Preserved: Local processing
+          </div>
+          <button id="btnCreate" onclick="submitProject()" class="px-6 py-2.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white font-medium text-sm flex items-center gap-2 transition shadow-lg shadow-cyan-600/30">
+            <i class="fa-solid fa-bolt"></i> <span>Build Circuit</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Curated Examples -->
+      <div class="max-w-4xl mx-auto">
+        <div class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Or choose a verified template:</div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div onclick="selectExample(1)" class="forge-card p-4 hover:border-cyan-500/50 cursor-pointer transition group">
+            <div class="text-orange-400 text-lg mb-2"><i class="fa-solid fa-temperature-half"></i></div>
+            <h3 class="font-bold text-sm text-gray-200 group-hover:text-cyan-400 transition">Temperature Monitor (MVP)</h3>
+            <p class="text-xs text-gray-400 mt-1 line-clamp-2">ESP32 with DHT22 temperature sensor and LED alert when temp > 30°C.</p>
+          </div>
+          <div onclick="selectExample(2)" class="forge-card p-4 hover:border-cyan-500/50 cursor-pointer transition group">
+            <div class="text-blue-400 text-lg mb-2"><i class="fa-solid fa-bullhorn"></i></div>
+            <h3 class="font-bold text-sm text-gray-200 group-hover:text-cyan-400 transition">Distance Warning System</h3>
+            <p class="text-xs text-gray-400 mt-1 line-clamp-2">ESP32 with HC-SR04 ultrasonic sensor and buzzer alert when distance &lt; 20cm.</p>
+          </div>
+          <div onclick="selectExample(3)" class="forge-card p-4 hover:border-cyan-500/50 cursor-pointer transition group">
+            <div class="text-green-400 text-lg mb-2"><i class="fa-solid fa-leaf"></i></div>
+            <h3 class="font-bold text-sm text-gray-200 group-hover:text-cyan-400 transition">Environmental Monitor</h3>
+            <p class="text-xs text-gray-400 mt-1 line-clamp-2">ESP32 with DHT22, analog potentiometer threshold, LED & buzzer alarms.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW: WORKSPACE -->
+    <section id="view-workspace" class="hidden space-y-6">
+      <!-- Workspace Header -->
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-gray-800">
+        <div>
+          <div class="flex items-center gap-3">
+            <button onclick="showView('projects')" class="text-gray-400 hover:text-white transition"><i class="fa-solid fa-arrow-left"></i></button>
+            <h2 id="wsProjectName" class="text-2xl font-bold text-white">Project Workspace</h2>
+            <span id="wsStatusBadge" class="text-xs px-2.5 py-0.5 rounded-full font-mono bg-cyan-950 text-cyan-400 border border-cyan-800">CREATED</span>
+          </div>
+          <p id="wsProjectDesc" class="text-xs text-gray-400 mt-1">Project details and controls</p>
+        </div>
+        <div class="flex items-center gap-2 flex-wrap">
+          <button onclick="planCurrentProject()" id="btnWsPlan" class="px-3.5 py-2 bg-gray-800 hover:bg-gray-700 text-cyan-400 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition border border-gray-700">
+            <i class="fa-solid fa-diagram-project"></i> Plan Spec
+          </button>
+          <button onclick="generateCurrentProject()" id="btnWsGenerate" class="px-3.5 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition shadow">
+            <i class="fa-solid fa-code"></i> Generate Code & Diagram
+          </button>
+          <button onclick="compileCurrentProject()" id="btnWsCompile" class="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition shadow">
+            <i class="fa-solid fa-terminal"></i> Compile (CLI)
+          </button>
+          <button onclick="downloadZip()" class="px-3.5 py-2 bg-gray-800 hover:bg-gray-700 text-gray-200 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition border border-gray-700">
+            <i class="fa-solid fa-download"></i> Export ZIP
+          </button>
+        </div>
+      </div>
+
+      <!-- Workspace Tabs -->
+      <div class="flex border-b border-gray-800 gap-2 overflow-x-auto text-xs font-medium">
+        <button onclick="switchWsTab('overview')" class="ws-tab px-4 py-2.5 border-b-2 border-cyan-400 text-cyan-400 font-bold transition flex items-center gap-2" data-tab="overview">
+          <i class="fa-solid fa-info-circle"></i> Overview & Pins
+        </button>
+        <button onclick="switchWsTab('diagram')" class="ws-tab px-4 py-2.5 border-b-2 border-transparent text-gray-400 hover:text-gray-200 transition flex items-center gap-2" data-tab="diagram">
+          <i class="fa-solid fa-project-diagram"></i> Circuit Diagram
+        </button>
+        <button onclick="switchWsTab('firmware')" class="ws-tab px-4 py-2.5 border-b-2 border-transparent text-gray-400 hover:text-gray-200 transition flex items-center gap-2" data-tab="firmware">
+          <i class="fa-solid fa-code"></i> Arduino Firmware (.ino)
+        </button>
+        <button onclick="switchWsTab('validation')" class="ws-tab px-4 py-2.5 border-b-2 border-transparent text-gray-400 hover:text-gray-200 transition flex items-center gap-2" data-tab="validation">
+          <i class="fa-solid fa-shield-halved"></i> Validation Report
+        </button>
+        <button onclick="switchWsTab('compiler')" class="ws-tab px-4 py-2.5 border-b-2 border-transparent text-gray-400 hover:text-gray-200 transition flex items-center gap-2" data-tab="compiler">
+          <i class="fa-solid fa-terminal"></i> Compiler Output
+        </button>
+        <button onclick="switchWsTab('simulation')" class="ws-tab px-4 py-2.5 border-b-2 border-transparent text-gray-400 hover:text-gray-200 transition flex items-center gap-2" data-tab="simulation">
+          <i class="fa-solid fa-play"></i> Wokwi Simulation
+        </button>
+        <button onclick="switchWsTab('bom')" class="ws-tab px-4 py-2.5 border-b-2 border-transparent text-gray-400 hover:text-gray-200 transition flex items-center gap-2" data-tab="bom">
+          <i class="fa-solid fa-indian-rupee-sign"></i> Bill of Materials (INR)
+        </button>
+        <button onclick="switchWsTab('repair')" class="ws-tab px-4 py-2.5 border-b-2 border-transparent text-gray-400 hover:text-gray-200 transition flex items-center gap-2" data-tab="repair">
+          <i class="fa-solid fa-wrench"></i> AI-Assisted Repair
+        </button>
+      </div>
+
+      <!-- TAB CONTENTS -->
+      <!-- 1. Overview -->
+      <div id="tab-overview" class="ws-tab-content space-y-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="forge-card p-5 space-y-4">
+            <h3 class="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
+              <i class="fa-solid fa-microchip text-cyan-400"></i> Board & Components
+            </h3>
+            <div id="overviewComponents" class="space-y-2 text-xs">
+              <p class="text-gray-500">No components defined yet.</p>
+            </div>
+          </div>
+          <div class="forge-card p-5 space-y-4">
+            <h3 class="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
+              <i class="fa-solid fa-plug text-cyan-400"></i> GPIO Pin Map
+            </h3>
+            <div id="overviewPins" class="overflow-x-auto text-xs">
+              <p class="text-gray-500">No pin assignments yet.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. Circuit Diagram -->
+      <div id="tab-diagram" class="ws-tab-content hidden space-y-4">
+        <div class="forge-card p-5">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-sm font-bold text-white flex items-center gap-2">
+              <i class="fa-solid fa-diagram-project text-cyan-400"></i> Visual Circuit Diagram (Wokwi-Compatible)
+            </h3>
+            <span class="text-xs text-gray-400 font-mono" id="diagramPartsCount">0 parts</span>
+          </div>
+          <!-- SVG Diagram Container -->
+          <div id="svgContainer" class="w-full h-80 bg-gray-950 rounded-lg border border-gray-800 flex items-center justify-center overflow-auto">
+            <p class="text-gray-600 text-xs">No diagram generated yet.</p>
+          </div>
+        </div>
+        <div class="forge-card p-4">
+          <div class="text-xs font-bold text-gray-400 mb-2 uppercase">Raw diagram.json</div>
+          <pre id="rawDiagramJson" class="text-xs bg-gray-950 p-4 rounded border border-gray-800 overflow-x-auto max-h-60 text-cyan-300 font-mono"></pre>
+        </div>
+      </div>
+
+      <!-- 3. Firmware -->
+      <div id="tab-firmware" class="ws-tab-content hidden space-y-4">
+        <div class="forge-card p-5">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-sm font-bold text-white flex items-center gap-2">
+              <i class="fa-solid fa-code text-cyan-400"></i> sketch.ino (Arduino C++)
+            </h3>
+            <button onclick="copyFirmware()" class="px-2.5 py-1 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded text-xs transition border border-gray-700">
+              <i class="fa-solid fa-copy"></i> Copy Code
+            </button>
+          </div>
+          <pre id="firmwareCode" class="text-xs bg-gray-950 p-4 rounded-lg border border-gray-800 overflow-x-auto text-green-300 font-mono max-h-[500px] leading-relaxed"></pre>
+        </div>
+      </div>
+
+      <!-- 4. Validation Report -->
+      <div id="tab-validation" class="ws-tab-content hidden space-y-4">
+        <div class="forge-card p-5">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-sm font-bold text-white flex items-center gap-2">
+              <i class="fa-solid fa-shield-halved text-cyan-400"></i> Structural & Hardware Compatibility Checks
+            </h3>
+            <button onclick="validateCurrentProject()" class="px-3 py-1 bg-cyan-900/60 hover:bg-cyan-900 text-cyan-300 rounded text-xs border border-cyan-800 transition">
+              <i class="fa-solid fa-rotate-right"></i> Run Validation
+            </button>
+          </div>
+          <div id="validationContent" class="space-y-3 text-xs">
+            <p class="text-gray-500">Run validation to inspect hardware safety, GPIO pins, and library dependencies.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 5. Compiler -->
+      <div id="tab-compiler" class="ws-tab-content hidden space-y-4">
+        <div class="forge-card p-5">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-sm font-bold text-white flex items-center gap-2">
+              <i class="fa-solid fa-terminal text-cyan-400"></i> Arduino CLI Compilation Logs
+            </h3>
+            <span id="compilerStatusBadge" class="text-xs font-mono px-2 py-0.5 rounded bg-gray-800 text-gray-400">NOT RUN</span>
+          </div>
+          <pre id="compilerLogs" class="text-xs bg-gray-950 p-4 rounded-lg border border-gray-800 overflow-x-auto font-mono text-gray-300 max-h-[400px] whitespace-pre-wrap"></pre>
+        </div>
+      </div>
+
+      <!-- 6. Simulation -->
+      <div id="tab-simulation" class="ws-tab-content hidden space-y-6">
+        <div class="forge-card p-5 space-y-4">
+          <div class="flex items-center justify-between">
+            <h3 class="text-sm font-bold text-white flex items-center gap-2">
+              <i class="fa-solid fa-play text-cyan-400"></i> Wokwi Simulation Runner
+            </h3>
+            <button onclick="runSimulation()" class="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition">
+              <i class="fa-solid fa-play"></i> Run Simulation
+            </button>
+          </div>
+          <div id="simOutput" class="p-4 bg-gray-950 rounded-lg border border-gray-800 text-xs text-gray-400">
+            No simulation executed yet.
+          </div>
+        </div>
+        <!-- Manual Wokwi Import Guide -->
+        <div class="forge-card p-5 border-cyan-900/50 bg-cyan-950/20 space-y-3">
+          <h4 class="text-xs font-bold uppercase tracking-wider text-cyan-400 flex items-center gap-1.5">
+            <i class="fa-solid fa-globe"></i> Manual Wokwi Simulation (Always Available)
+          </h4>
+          <ol class="list-decimal list-inside text-xs text-gray-300 space-y-1.5 leading-relaxed">
+            <li>Visit <a href="https://wokwi.com" target="_blank" class="text-cyan-400 underline">https://wokwi.com</a> and choose <strong>ESP32</strong> project.</li>
+            <li>Copy the code from the <strong>Arduino Firmware</strong> tab into <code class="text-cyan-300">sketch.ino</code>.</li>
+            <li>Copy the JSON from the <strong>Circuit Diagram</strong> tab into <code class="text-cyan-300">diagram.json</code>.</li>
+            <li>Click the green <strong>Play</strong> button in Wokwi to test in browser!</li>
+          </ol>
+        </div>
+      </div>
+
+      <!-- 7. BOM -->
+      <div id="tab-bom" class="ws-tab-content hidden space-y-4">
+        <div class="forge-card p-5">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-sm font-bold text-white flex items-center gap-2">
+              <i class="fa-solid fa-indian-rupee-sign text-cyan-400"></i> Verified Bill of Materials (INR)
+            </h3>
+            <span id="bomTotal" class="text-sm font-bold text-cyan-400">₹0.00</span>
+          </div>
+          <div id="bomTableContainer" class="overflow-x-auto text-xs">
+            <p class="text-gray-500">No BOM generated yet.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 8. AI Repair -->
+      <div id="tab-repair" class="ws-tab-content hidden space-y-4">
+        <div class="forge-card p-5 space-y-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                <i class="fa-solid fa-wrench text-cyan-400"></i> AI-Assisted Firmware Repair
+              </h3>
+              <p class="text-xs text-gray-400 mt-1">Bounded repair using local LLM (up to 3 automated attempts).</p>
+            </div>
+            <button onclick="attemptRepair()" class="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition">
+              <i class="fa-solid fa-wand-magic-sparkles"></i> Attempt Repair
+            </button>
+          </div>
+          <div id="repairHistory" class="space-y-3 text-xs">
+            <p class="text-gray-500">No repair attempts recorded.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW: PROJECTS LIST -->
+    <section id="view-projects" class="hidden space-y-6">
+      <div class="flex items-center justify-between pb-4 border-b border-gray-800">
+        <div>
+          <h2 class="text-2xl font-bold text-white">Saved Projects</h2>
+          <p class="text-xs text-gray-400 mt-1">Local projects saved in SQLite and local filesystem</p>
+        </div>
+        <button onclick="showView('home')" class="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition">
+          <i class="fa-solid fa-plus"></i> New Project
+        </button>
+      </div>
+      <div id="projectsList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <p class="text-gray-500 text-xs">Loading projects...</p>
+      </div>
+    </section>
+
+    <!-- VIEW: CATALOG -->
+    <section id="view-catalog" class="hidden space-y-6">
+      <div class="pb-4 border-b border-gray-800">
+        <h2 class="text-2xl font-bold text-white">Verified Component Catalog</h2>
+        <p class="text-xs text-gray-400 mt-1">Curated components with validated wiring constraints and indicative pricing in INR</p>
+      </div>
+      <div id="catalogGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <p class="text-gray-500 text-xs">Loading catalog...</p>
+      </div>
+    </section>
+
+    <!-- VIEW: SETUP -->
+    <section id="view-setup" class="hidden space-y-6">
+      <div class="pb-4 border-b border-gray-800">
+        <h2 class="text-2xl font-bold text-white">System Environment & Health</h2>
+        <p class="text-xs text-gray-400 mt-1">Real-time status of local development tools and models</p>
+      </div>
+      <div id="setupGrid" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <p class="text-gray-500 text-xs">Checking system status...</p>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="border-t border-gray-800 py-4 px-6 text-center text-xs text-gray-500">
+    CircuitForge AI · Local-First IoT Builder · Arduino, ESP32 & Wokwi
+  </footer>
+
+  <!-- Core JavaScript -->
+  <script>
+    let currentProjectId = null;
+    let currentProjectData = null;
+
+    // Toast helper
+    function showToast(msg, type = 'info') {
+      const toast = document.getElementById('toast');
+      toast.innerText = msg;
+      toast.className = `fixed bottom-5 right-5 z-50 transform transition-all duration-300 flex items-center gap-3 px-4 py-3 rounded-lg shadow-xl text-sm border font-medium ${
+        type === 'success' ? 'bg-green-950 text-green-300 border-green-800' :
+        type === 'error' ? 'bg-red-950 text-red-300 border-red-800' :
+        'bg-cyan-950 text-cyan-300 border-cyan-800'
+      }`;
+      setTimeout(() => { toast.classList.add('translate-y-20', 'opacity-0'); }, 3500);
+    }
+
+    // View Navigation
+    function showView(viewName) {
+      ['home', 'workspace', 'projects', 'catalog', 'setup'].forEach(v => {
+        document.getElementById(`view-${v}`).classList.add('hidden');
+      });
+      document.getElementById(`view-${viewName}`).classList.remove('hidden');
+
+      if (viewName === 'projects') loadProjects();
+      if (viewName === 'catalog') loadCatalog();
+      if (viewName === 'setup') loadSystemSetup();
+    }
+
+    // Examples selector
+    function selectExample(num) {
+      const examples = {
+        1: "Create an ESP32-based temperature monitor using a DHT22 sensor. Turn on an LED when the temperature exceeds 30 degrees Celsius.",
+        2: "Build an ultrasonic distance warning system using ESP32, HC-SR04 sensor, and buzzer. Activate buzzer when distance is less than 20cm.",
+        3: "Make an ESP32 environmental monitor with DHT22, an analog potentiometer to dynamically adjust threshold, with LED and buzzer alarms."
+      };
+      document.getElementById('promptInput').value = examples[num];
+      submitProject();
+    }
+
+    // Submit project creation
+    async function submitProject() {
+      const prompt = document.getElementById('promptInput').value.trim();
+      if (!prompt || prompt.length < 10) {
+        showToast('Please describe your IoT project in detail (at least 10 characters).', 'error');
+        return;
+      }
+      const btn = document.getElementById('btnCreate');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Creating...';
+
+      try {
+        const res = await fetch('/api/projects', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ user_request: prompt })
+        });
+        if (!res.ok) throw new Error(await res.text());
+        const data = await res.json();
+        currentProjectId = data.id;
+        showToast('Project created successfully!', 'success');
+        await loadProjectWorkspace(data.id);
+        showView('workspace');
+      } catch (err) {
+        showToast('Creation failed: ' + err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-bolt"></i> <span>Build Circuit</span>';
+      }
+    }
+
+    // Load project workspace
+    async function loadProjectWorkspace(id) {
+      currentProjectId = id;
+      try {
+        const res = await fetch(`/api/projects/${id}`);
+        if (!res.ok) throw new Error('Project not found');
+        const proj = await res.json();
+        currentProjectData = proj;
+        renderWorkspace(proj);
+      } catch (err) {
+        showToast('Failed to load project: ' + err.message, 'error');
+      }
+    }
+
+    // Render workspace UI
+    function renderWorkspace(proj) {
+      document.getElementById('wsProjectName').innerText = proj.name || 'Untitled Project';
+      document.getElementById('wsProjectDesc').innerText = proj.user_request || '';
+      document.getElementById('wsStatusBadge').innerText = (proj.status || 'CREATED').toUpperCase();
+
+      // Render Overview Components
+      const compDiv = document.getElementById('overviewComponents');
+      if (proj.spec && proj.spec.components && proj.spec.components.length) {
+        compDiv.innerHTML = proj.spec.components.map(c => `
+          <div class="flex items-center justify-between p-2.5 rounded bg-gray-950 border border-gray-800">
+            <div>
+              <span class="font-bold text-gray-200">${c.name}</span>
+              <span class="text-[10px] text-cyan-400 block font-mono">${c.catalog_id}</span>
+            </div>
+            <span class="px-2 py-0.5 rounded bg-gray-800 text-gray-300 text-[11px] font-mono">Qty: ${c.quantity}</span>
+          </div>
+        `).join('');
+      } else {
+        compDiv.innerHTML = '<p class="text-gray-500">Click "Plan Spec" to generate component requirements.</p>';
+      }
+
+      // Render Pins Table
+      const pinDiv = document.getElementById('overviewPins');
+      if (proj.spec && proj.spec.pin_assignments && proj.spec.pin_assignments.length) {
+        pinDiv.innerHTML = `
+          <table class="w-full text-left">
+            <thead>
+              <tr class="text-gray-500 border-b border-gray-800 pb-1">
+                <th class="py-1">Component</th>
+                <th>Pin</th>
+                <th>ESP32 GPIO</th>
+                <th>Purpose</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-800/50">
+              ${proj.spec.pin_assignments.map(p => `
+                <tr>
+                  <td class="py-1.5 font-medium text-gray-200">${p.component_instance}</td>
+                  <td class="text-cyan-400 font-mono">${p.component_pin}</td>
+                  <td class="text-amber-400 font-mono font-bold">GPIO${p.gpio_pin}</td>
+                  <td class="text-gray-400">${p.description}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        `;
+      } else {
+        pinDiv.innerHTML = '<p class="text-gray-500">No GPIO pins assigned yet.</p>';
+      }
+
+      // Render Diagram
+      if (proj.diagram_json) {
+        document.getElementById('rawDiagramJson').innerText = JSON.stringify(proj.diagram_json, null, 2);
+        document.getElementById('diagramPartsCount').innerText = `${(proj.diagram_json.parts || []).length} parts, ${(proj.diagram_json.connections || []).length} wires`;
+        renderDiagramSVG(proj.diagram_json);
+      } else {
+        document.getElementById('rawDiagramJson').innerText = '// Diagram not yet generated';
+        document.getElementById('svgContainer').innerHTML = '<p class="text-gray-600 text-xs">Click "Generate Code & Diagram" to build circuit.</p>';
+      }
+
+      // Render Firmware
+      if (proj.firmware_code) {
+        document.getElementById('firmwareCode').innerText = proj.firmware_code;
+      } else {
+        document.getElementById('firmwareCode').innerText = '// Firmware not yet generated';
+      }
+
+      // Render Validation
+      if (proj.validation_result) {
+        renderValidation(proj.validation_result);
+      }
+
+      // Render Compiler
+      if (proj.compilation_log) {
+        document.getElementById('compilerLogs').innerText = proj.compilation_log;
+        document.getElementById('compilerStatusBadge').innerText = proj.compilation_success ? 'SUCCESS' : 'FAILED';
+        document.getElementById('compilerStatusBadge').className = `text-xs font-mono px-2 py-0.5 rounded ${proj.compilation_success ? 'bg-green-950 text-green-400' : 'bg-red-950 text-red-400'}`;
+      } else {
+        document.getElementById('compilerLogs').innerText = '// No compilation run yet';
+        document.getElementById('compilerStatusBadge').innerText = 'NOT RUN';
+      }
+
+      // Render BOM
+      if (proj.bom) {
+        renderBOM(proj.bom);
+      }
+    }
+
+    // Render SVG Circuit Diagram Visualizer
+    function renderDiagramSVG(diag) {
+      const container = document.getElementById('svgContainer');
+      const parts = diag.parts || [];
+      const conns = diag.connections || [];
+      
+      let svg = `<svg viewBox="0 0 900 450" class="w-full h-full" xmlns="http://www.w3.org/2000/svg">`;
+      // Background grid lines
+      svg += `<defs>
+        <pattern id="smallGrid" width="20" height="20" patternUnits="userSpaceOnUse">
+          <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#1f293d" stroke-width="0.5"/>
+        </pattern>
+      </defs>`;
+      svg += `<rect width="100%" height="100%" fill="#0b0f19" />`;
+      svg += `<rect width="100%" height="100%" fill="url(#smallGrid)" />`;
+
+      // Draw connections
+      conns.forEach((c, idx) => {
+        const color = c[2] || '#22d3ee';
+        svg += `<path d="M 150,${80 + idx * 30} C 300,${80 + idx * 30} 400,${120 + idx * 25} 600,${100 + idx * 35}" stroke="${color}" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-dasharray="4,2"/>`;
+      });
+
+      // Draw components
+      parts.forEach((p, idx) => {
+        const isEsp = p.type.includes('esp32');
+        const x = isEsp ? 60 : 450 + (idx * 130) % 350;
+        const y = isEsp ? 70 : 60 + (idx * 90) % 280;
+        const w = isEsp ? 160 : 110;
+        const h = isEsp ? 260 : 80;
+        const fill = isEsp ? '#1e293b' : '#111827';
+        const border = isEsp ? '#06b6d4' : '#3b82f6';
+
+        svg += `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="8" fill="${fill}" stroke="${border}" stroke-width="2" />`;
+        svg += `<text x="${x + w/2}" y="${y + 25}" text-anchor="middle" fill="#f8fafc" font-size="11" font-weight="bold" font-family="monospace">${p.id}</text>`;
+        svg += `<text x="${x + w/2}" y="${y + 42}" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="monospace">${p.type.replace('wokwi-', '')}</text>`;
+
+        // Component pins
+        for (let i = 0; i < 4; i++) {
+          const pinY = y + 55 + i * 20;
+          if (pinY < y + h - 10) {
+            svg += `<circle cx="${x + 6}" cy="${pinY}" r="3" fill="#38bdf8" />`;
+            svg += `<circle cx="${x + w - 6}" cy="${pinY}" r="3" fill="#38bdf8" />`;
+          }
+        }
+      });
+
+      svg += `</svg>`;
+      container.innerHTML = svg;
+    }
+
+    // Render Validation Report
+    function renderValidation(res) {
+      const div = document.getElementById('validationContent');
+      const isValid = res.valid;
+      let html = `
+        <div class="p-3 rounded-lg border ${isValid ? 'bg-green-950/40 border-green-800 text-green-300' : 'bg-red-950/40 border-red-800 text-red-300'} flex items-center gap-2">
+          <i class="fa-solid ${isValid ? 'fa-circle-check text-green-400' : 'fa-circle-xmark text-red-400'} text-base"></i>
+          <span class="font-bold">${isValid ? 'All Hardware & Wiring Checks Passed' : 'Validation Issues Detected'}</span>
+        </div>
+      `;
+      if (res.errors && res.errors.length) {
+        html += `<div class="space-y-1"><p class="font-bold text-red-400 uppercase tracking-wider text-[11px]">Errors:</p>`;
+        res.errors.forEach(e => {
+          html += `<div class="p-2 rounded bg-gray-950 border border-red-900/40 text-red-300 font-mono text-[11px]"><i class="fa-solid fa-triangle-exclamation mr-1.5"></i>[${e.code}] ${e.message}</div>`;
+        });
+        html += `</div>`;
+      }
+      if (res.warnings && res.warnings.length) {
+        html += `<div class="space-y-1"><p class="font-bold text-amber-400 uppercase tracking-wider text-[11px]">Warnings:</p>`;
+        res.warnings.forEach(w => {
+          html += `<div class="p-2 rounded bg-gray-950 border border-amber-900/40 text-amber-300 font-mono text-[11px]"><i class="fa-solid fa-circle-exclamation mr-1.5"></i>[${w.code}] ${w.message}</div>`;
+        });
+        html += `</div>`;
+      }
+      div.innerHTML = html;
+    }
+
+    // Render BOM
+    function renderBOM(bom) {
+      document.getElementById('bomTotal').innerText = `Total: ₹${bom.total_inr.toFixed(2)}`;
+      const cont = document.getElementById('bomTableContainer');
+      cont.innerHTML = `
+        <table class="w-full text-left">
+          <thead>
+            <tr class="text-gray-500 border-b border-gray-800 pb-1">
+              <th class="py-1">Part Name</th>
+              <th>Qty</th>
+              <th>Unit Price (INR)</th>
+              <th>Subtotal (INR)</th>
+              <th>Source</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-800/50">
+            ${bom.lines.map(l => `
+              <tr>
+                <td class="py-2 font-medium text-gray-200">${l.name}</td>
+                <td class="font-mono text-gray-300">${l.quantity}</td>
+                <td class="font-mono text-gray-300">₹${l.unit_price_inr.toFixed(2)}</td>
+                <td class="font-mono text-cyan-400 font-bold">₹${l.subtotal_inr.toFixed(2)}</td>
+                <td class="text-gray-500 text-[10px]">${l.price_source}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+        <p class="text-[11px] text-gray-500 mt-3 italic">${bom.note}</p>
+      `;
+    }
+
+    // Tab Switcher inside Workspace
+    function switchWsTab(tabName) {
+      document.querySelectorAll('.ws-tab').forEach(b => {
+        b.classList.remove('border-cyan-400', 'text-cyan-400', 'font-bold');
+        b.classList.add('border-transparent', 'text-gray-400');
+        if (b.dataset.tab === tabName) {
+          b.classList.add('border-cyan-400', 'text-cyan-400', 'font-bold');
+          b.classList.remove('border-transparent', 'text-gray-400');
+        }
+      });
+      document.querySelectorAll('.ws-tab-content').forEach(c => c.classList.add('hidden'));
+      document.getElementById(`tab-${tabName}`).classList.remove('hidden');
+    }
+
+    // Workspace Actions
+    async function planCurrentProject() {
+      if (!currentProjectId) return;
+      const btn = document.getElementById('btnWsPlan');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Planning...';
+      try {
+        const res = await fetch(`/api/projects/${currentProjectId}/plan`, { method: 'POST' });
+        if (!res.ok) throw new Error(await res.text());
+        showToast('Planning complete!', 'success');
+        await loadProjectWorkspace(currentProjectId);
+      } catch (err) {
+        showToast('Planning error: ' + err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-diagram-project"></i> Plan Spec';
+      }
+    }
+
+    async function generateCurrentProject() {
+      if (!currentProjectId) return;
+      const btn = document.getElementById('btnWsGenerate');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Generating...';
+      try {
+        const res = await fetch(`/api/projects/${currentProjectId}/generate`, { method: 'POST' });
+        if (!res.ok) throw new Error(await res.text());
+        showToast('Generated firmware & circuit diagram!', 'success');
+        await loadProjectWorkspace(currentProjectId);
+        switchWsTab('diagram');
+      } catch (err) {
+        showToast('Generation error: ' + err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-code"></i> Generate Code & Diagram';
+      }
+    }
+
+    async function validateCurrentProject() {
+      if (!currentProjectId) return;
+      try {
+        const res = await fetch(`/api/projects/${currentProjectId}/validate`, { method: 'POST' });
+        if (!res.ok) throw new Error(await res.text());
+        const data = await res.json();
+        showToast('Validation updated!', 'success');
+        await loadProjectWorkspace(currentProjectId);
+        switchWsTab('validation');
+      } catch (err) {
+        showToast('Validation failed: ' + err.message, 'error');
+      }
+    }
+
+    async function compileCurrentProject() {
+      if (!currentProjectId) return;
+      const btn = document.getElementById('btnWsCompile');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Compiling...';
+      try {
+        const res = await fetch(`/api/projects/${currentProjectId}/compile`, { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+          showToast('Arduino firmware compilation SUCCEEDED!', 'success');
+        } else {
+          showToast('Compilation FAILED. Check logs or run AI Repair.', 'error');
+        }
+        await loadProjectWorkspace(currentProjectId);
+        switchWsTab('compiler');
+      } catch (err) {
+        showToast('Compilation error: ' + err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-terminal"></i> Compile (CLI)';
+      }
+    }
+
+    async function runSimulation() {
+      if (!currentProjectId) return;
+      try {
+        const res = await fetch(`/api/projects/${currentProjectId}/simulate`, { method: 'POST' });
+        const data = await res.json();
+        const out = document.getElementById('simOutput');
+        if (data.mode === 'manual') {
+          out.innerHTML = `
+            <div class="text-amber-400 font-bold mb-2"><i class="fa-solid fa-triangle-exclamation mr-1.5"></i>${data.message}</div>
+            <div class="space-y-1">${data.manual_steps.map(s => `<div>${s}</div>`).join('')}</div>
+          `;
+        } else {
+          out.innerText = data.stdout || data.stderr || 'Simulation completed.';
+        }
+        showToast('Simulation evaluated', 'info');
+      } catch (err) {
+        showToast('Simulation error: ' + err.message, 'error');
+      }
+    }
+
+    async function attemptRepair() {
+      if (!currentProjectId) return;
+      try {
+        const res = await fetch(`/api/projects/${currentProjectId}/repair`, { method: 'POST' });
+        if (!res.ok) throw new Error(await res.text());
+        const data = await res.json();
+        if (data.compile_success) {
+          showToast(`Repair Attempt ${data.attempt_number} SUCCEEDED!`, 'success');
+        } else {
+          showToast(`Repair Attempt ${data.attempt_number} failed.`, 'error');
+        }
+        await loadProjectWorkspace(currentProjectId);
+        switchWsTab('repair');
+      } catch (err) {
+        showToast('Repair failed: ' + err.message, 'error');
+      }
+    }
+
+    function downloadZip() {
+      if (!currentProjectId) return;
+      window.location.href = `/api/projects/${currentProjectId}/download`;
+    }
+
+    function copyFirmware() {
+      const code = document.getElementById('firmwareCode').innerText;
+      navigator.clipboard.writeText(code);
+      showToast('Firmware copied to clipboard!', 'success');
+    }
+
+    // Projects View
+    async function loadProjects() {
+      const list = document.getElementById('projectsList');
+      try {
+        const res = await fetch('/api/projects');
+        const projs = await res.json();
+        if (!projs.length) {
+          list.innerHTML = '<p class="text-gray-500 text-xs">No projects saved yet.</p>';
+          return;
+        }
+        list.innerHTML = projs.map(p => `
+          <div class="forge-card p-4 space-y-3 hover:border-cyan-500/50 transition flex flex-col justify-between">
+            <div>
+              <div class="flex items-center justify-between mb-1">
+                <h4 class="font-bold text-white text-sm truncate">${p.name}</h4>
+                <span class="text-[10px] px-2 py-0.5 rounded bg-gray-800 text-cyan-400 font-mono">${p.status}</span>
+              </div>
+              <p class="text-xs text-gray-400 line-clamp-2">${p.description}</p>
+            </div>
+            <div class="flex items-center justify-between pt-2 border-t border-gray-800/60">
+              <span class="text-[10px] text-gray-500 font-mono">${p.id.substring(0, 8)}</span>
+              <button onclick="loadProjectWorkspace('${p.id}'); showView('workspace');" class="px-2.5 py-1 bg-cyan-950 text-cyan-400 hover:bg-cyan-900 rounded text-xs transition border border-cyan-800">
+                Open Workspace <i class="fa-solid fa-arrow-right ml-1"></i>
+              </button>
+            </div>
+          </div>
+        `).join('');
+      } catch (err) {
+        list.innerHTML = '<p class="text-red-400 text-xs">Failed to load projects.</p>';
+      }
+    }
+
+    // Catalog View
+    async function loadCatalog() {
+      const grid = document.getElementById('catalogGrid');
+      try {
+        const res = await fetch('/api/catalog');
+        const items = await res.json();
+        grid.innerHTML = items.map(c => `
+          <div class="forge-card p-4 space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-white text-sm">${c.name}</span>
+              <span class="text-xs font-mono font-bold text-cyan-400">₹${c.unit_price_inr.toFixed(2)}</span>
+            </div>
+            <p class="text-xs text-gray-400">${c.description}</p>
+            <div class="text-[10px] space-y-1 font-mono text-gray-400 bg-gray-950 p-2.5 rounded border border-gray-800">
+              <div>Wokwi ID: <span class="text-cyan-300">${c.wokwi_id}</span></div>
+              <div>Category: <span class="text-amber-300">${c.category}</span></div>
+              <div>Libraries: <span class="text-green-300">${(c.libraries || []).join(', ') || 'Built-in'}</span></div>
+            </div>
+          </div>
+        `).join('');
+      } catch (err) {
+        grid.innerHTML = '<p class="text-red-400 text-xs">Failed to load catalog.</p>';
+      }
+    }
+
+    // Setup View
+    async function loadSystemSetup() {
+      const grid = document.getElementById('setupGrid');
+      try {
+        const res = await fetch('/api/system');
+        const s = await res.json();
+        grid.innerHTML = `
+          <div class="forge-card p-4 space-y-3">
+            <h4 class="text-sm font-bold text-white flex items-center gap-2">
+              <i class="fa-solid fa-brain text-cyan-400"></i> Local AI (Ollama)
+            </h4>
+            <div class="space-y-1.5 text-xs text-gray-300">
+              <div class="flex justify-between"><span>Ollama Server:</span> <span class="${s.ollama.available ? 'text-green-400 font-bold' : 'text-amber-400'}">${s.ollama.available ? 'Online (v' + s.ollama.version + ')' : 'Not Reachable'}</span></div>
+              <div class="flex justify-between"><span>Planner Model:</span> <span class="font-mono text-cyan-300">${s.models.planner.name}</span></div>
+              <div class="flex justify-between"><span>Firmware Model:</span> <span class="font-mono text-cyan-300">Arduino-Coder-0.5B</span></div>
+            </div>
+          </div>
+          <div class="forge-card p-4 space-y-3">
+            <h4 class="text-sm font-bold text-white flex items-center gap-2">
+              <i class="fa-solid fa-screwdriver-wrench text-cyan-400"></i> Toolchain (Arduino & Wokwi)
+            </h4>
+            <div class="space-y-1.5 text-xs text-gray-300">
+              <div class="flex justify-between"><span>Arduino CLI:</span> <span class="${s.arduino_cli.available ? 'text-green-400 font-bold' : 'text-red-400'}">${s.arduino_cli.available ? 'Installed (' + s.arduino_cli.version.substring(0, 20) + ')' : 'Not Found'}</span></div>
+              <div class="flex justify-between"><span>ESP32 Core:</span> <span class="${s.arduino_boards.esp32_installed ? 'text-green-400 font-bold' : 'text-amber-400'}">${s.arduino_boards.esp32_installed ? 'Installed' : 'Run: arduino-cli core install esp32:esp32'}</span></div>
+              <div class="flex justify-between"><span>Wokwi CLI:</span> <span class="${s.wokwi_cli.available ? 'text-green-400 font-bold' : 'text-gray-400'}">${s.wokwi_cli.available ? 'Installed' : 'Optional (Manual Web Sim Available)'}</span></div>
+            </div>
+          </div>
+        `;
+      } catch (err) {
+        grid.innerHTML = '<p class="text-red-400 text-xs">Failed to check system status.</p>';
+      }
+    }
+  </script>
+</body>
+</html>

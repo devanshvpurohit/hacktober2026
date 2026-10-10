@@ -1,0 +1,64 @@
+{
+  "version": 1,
+  "author": "CircuitForge AI",
+  "editor": "wokwi",
+  "parts": [
+    {
+      "type": "wokwi-esp32-devkit-v1",
+      "id": "esp",
+      "top": 0,
+      "left": 0,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-dht22",
+      "id": "dht1",
+      "top": -90,
+      "left": 180,
+      "attrs": { "temperature": "28", "humidity": "55" }
+    },
+    {
+      "type": "wokwi-potentiometer",
+      "id": "pot1",
+      "top": -90,
+      "left": -120,
+      "attrs": { "value": "0.3" }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "led1",
+      "top": 120,
+      "left": 180,
+      "attrs": { "color": "red" }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "r1",
+      "top": 170,
+      "left": 130,
+      "attrs": { "resistance": "220" }
+    },
+    {
+      "type": "wokwi-buzzer",
+      "id": "buzzer1",
+      "top": 120,
+      "left": -80,
+      "attrs": { "volume": "0.5" }
+    }
+  ],
+  "connections": [
+    [ "esp:TX", "$serialMonitor:RX", "", [] ],
+    [ "esp:RX", "$serialMonitor:TX", "", [] ],
+    [ "esp:3V3", "dht1:VCC", "red", [ "v0" ] ],
+    [ "esp:GND", "dht1:GND", "black", [ "v0" ] ],
+    [ "esp:D4", "dht1:SDA", "green", [ "v0" ] ],
+    [ "esp:3V3", "pot1:VCC", "red", [ "v0" ] ],
+    [ "esp:GND", "pot1:GND", "black", [ "v0" ] ],
+    [ "esp:D34", "pot1:SIG", "yellow", [ "v0" ] ],
+    [ "esp:D2", "led1:A", "cyan", [ "v0" ] ],
+    [ "led1:K", "r1:1", "black", [ "v0" ] ],
+    [ "r1:2", "esp:GND", "black", [ "v0" ] ],
+    [ "esp:D19", "buzzer1:2", "orange", [ "v0" ] ],
+    [ "esp:GND", "buzzer1:1", "black", [ "v0" ] ]
+  ]
+}
