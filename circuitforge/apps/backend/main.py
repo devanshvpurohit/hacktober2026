@@ -553,6 +553,7 @@ async def simulate_project(project_id: str):
             "/usr/local/bin/wokwi-cli",
             os.path.expanduser("~/.local/bin/wokwi-cli"),
             os.path.expanduser("~/bin/wokwi-cli"),
+            os.path.expanduser("~/.cargo/bin/wokwi-cli"),
         ]
         for path in alternative_paths:
             if os.path.exists(path):
@@ -589,8 +590,9 @@ async def simulate_project(project_id: str):
         ws = Path(project.workspace_path)
         
         # Run wokwi-cli with timeout
+        # Note: Newer versions use direct command, older versions use 'run' subcommand
         proc = await asyncio.create_subprocess_exec(
-            wokwi_path, "run", "--timeout", "30000", str(ws),
+            wokwi_path, "--timeout", "30000", str(ws),
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             cwd=str(ws),
@@ -611,6 +613,25 @@ async def simulate_project(project_id: str):
         stdout = out.decode("utf-8", errors="replace")[:10000]
         stderr = err.decode("utf-8", errors="replace")[:10000]
         success = proc.returncode == 0
+
+        # Check if token is missing
+        if "WOKWI_CLI_TOKEN" in stderr or "Missing" in stderr and "token" in stderr.lower():
+            project.simulation_status = SimulationStatus.MANUAL
+            await update_project(project)
+            return {
+                "simulation_status": SimulationStatus.MANUAL.value,
+                "mode": "manual",
+                "message": "Wokwi CLI requires authentication token",
+                "error": "WOKWI_CLI_TOKEN environment variable not set",
+                "manual_steps": [
+                    "1. Get your Wokwi token at https://wokwi.com/dashboard/ci",
+                    "2. Set environment variable: export WOKWI_CLI_TOKEN='your-token'",
+                    "3. Or use the embedded simulator in the Diagram tab",
+                    "4. Or open https://wokwi.com/ for web-based simulation",
+                ],
+                "wokwi_docs": "https://docs.wokwi.com/wokwi-ci/getting-started",
+                "get_token": "https://wokwi.com/dashboard/ci",
+            }
 
         project.simulation_status = SimulationStatus.PASSED if success else SimulationStatus.FAILED
         await update_project(project)

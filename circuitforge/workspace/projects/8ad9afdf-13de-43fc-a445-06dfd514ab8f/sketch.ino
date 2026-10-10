@@ -27,7 +27,7 @@ void setup() {
 void loop() {
   float t = dht.readTemperature();
   float h = dht.readHumidity();
-  
+
   if (!isnan(t) && !isnan(h)) {
     lcd.clear();
     lcd.setCursor(0, 0);
@@ -38,12 +38,12 @@ void loop() {
     lcd.print("Humidity: ");
     lcd.print(h, 1);
     lcd.print("%");
-    
+
     Serial.print(F("Temp: "));
     Serial.print(t);
     Serial.print(F(" C | Humidity: "));
     Serial.print(h);
-    Serial.println(F(" %"));
+    Serial.print(F(" %"));
   }
   delay(2000);
 }

@@ -46,16 +46,36 @@ elf = '.pio/build/esp32dev/firmware.elf'
       const result = await response.json()
       
       if (result.simulation_status === 'manual' || result.mode === 'manual') {
-        setSerialOutput([
-          'Wokwi CLI not available.',
-          'Opening Wokwi in a new tab for simulation...',
-          '',
-          'You can also:',
-          '1. Install Wokwi CLI from https://docs.wokwi.com/wokwi-ci/getting-started',
-          '2. Or use the embedded simulator below',
-        ])
-        // Open Wokwi in new tab
-        window.open('https://wokwi.com/projects/new/esp32', '_blank')
+        const tokenNeeded = result.error && result.error.includes('TOKEN')
+        
+        if (tokenNeeded) {
+          setSerialOutput([
+            '⚠️ Wokwi CLI Token Required',
+            '',
+            'Your Wokwi CLI needs authentication to simulate.',
+            '',
+            '📝 Steps to fix:',
+            '1. Visit https://wokwi.com/dashboard/ci',
+            '2. Copy your Wokwi CLI token',
+            '3. Set environment variable:',
+            '   export WOKWI_CLI_TOKEN="your-token-here"',
+            '4. Restart the backend server',
+            '',
+            '💡 Alternative: Use embedded simulator (no token needed)',
+            '',
+            'For now, using browser-based simulation...',
+          ])
+        } else {
+          setSerialOutput([
+            'Wokwi CLI not available.',
+            'Using embedded browser simulation...',
+            '',
+            'You can also:',
+            '1. Install Wokwi CLI from https://docs.wokwi.com/wokwi-ci/getting-started',
+            '2. Use the embedded simulator (current mode)',
+            '3. Or open in Wokwi.com for full features',
+          ])
+        }
       } else {
         setSerialOutput([
           'Simulation started!',
