@@ -12,6 +12,7 @@ import {
   compileProject, repairProject, simulateProject,
   downloadProject, getErrorMessage
 } from '../utils/api'
+import { CircuitEditor } from '../components/CircuitEditor'
 import type { Project } from '../types'
 import {
   STATUS_LABELS, STATUS_CLASS, SIM_LABELS, SIM_CLASS,
@@ -430,25 +431,30 @@ function DiagramTab({ project }: { project: Project }) {
     return <EmptyState icon={CircuitIcon} message="Diagram not yet generated." />
   }
   return (
-    <div className="space-y-4">
-      <div className="forge-card p-5">
-        <h3 className="text-sm font-semibold text-gray-400 uppercase mb-3">Wokwi Diagram — Parts</h3>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          {project.diagram_json.parts?.map((part: any, i: number) => (
-            <div key={i} className="bg-gray-800 rounded-lg p-3">
-              <div className="text-sm text-white font-mono">{part.id}</div>
-              <div className="text-xs text-cyan-400 mt-0.5">{part.type}</div>
-            </div>
-          ))}
+    <div className="space-y-6">
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-gray-300 uppercase tracking-wider flex items-center gap-2">
+            <CircuitIcon className="w-4 h-4 text-cyan-400" />
+            Interactive Circuit Editor (Wokwi-Compatible)
+          </h3>
+          <span className="text-xs text-gray-500">
+            Click & drag components to rearrange • Drag canvas to pan • Scroll to zoom
+          </span>
         </div>
+        <CircuitEditor
+          diagram={project.diagram_json}
+          pinAssignments={project.spec?.pin_assignments || []}
+        />
       </div>
+
       <div className="forge-card overflow-hidden">
         <div className="flex items-center justify-between px-4 py-2 border-b border-gray-800">
           <span className="text-sm text-gray-400 font-mono">diagram.json</span>
           <span className="text-xs text-gray-600">{project.diagram_json.connections?.length ?? 0} connections</span>
         </div>
         <Editor
-          height="400px"
+          height="300px"
           language="json"
           value={JSON.stringify(project.diagram_json, null, 2)}
           theme="vs-dark"

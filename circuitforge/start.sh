@@ -11,6 +11,19 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BACKEND_DIR="${SCRIPT_DIR}/apps/backend"
 FRONTEND_DIR="${SCRIPT_DIR}/apps/frontend"
 
+# Export standard paths for macOS Apple Silicon and local runtimes
+export PATH="/Users/samarthgudoorkar/.local/node/bin:/opt/homebrew/bin:/usr/local/bin:${PATH}"
+
+# Detect Python interpreter (prefer virtual environment)
+if [ -f "${BACKEND_DIR}/.venv/bin/python" ]; then
+    PYTHON_BIN="${BACKEND_DIR}/.venv/bin/python"
+elif command -v python3 &>/dev/null; then
+    PYTHON_BIN="python3"
+else
+    echo "  ✗ Python not found! Please install Python 3.11+."
+    exit 1
+fi
+
 echo "=================================================================="
 echo "          CircuitForge AI — Local IoT Development Studio          "
 echo "=================================================================="
@@ -18,12 +31,7 @@ echo ""
 
 # 1. Environment Detection
 echo "[1/4] Checking local development toolchain..."
-if command -v python3 &>/dev/null; then
-    echo "  ✓ Python: $(python3 --version)"
-else
-    echo "  ✗ Python 3 not found! Please install Python 3.11+."
-    exit 1
-fi
+echo "  ✓ Python: $(${PYTHON_BIN} --version) (${PYTHON_BIN})"
 
 if command -v arduino-cli &>/dev/null; then
     echo "  ✓ Arduino CLI: installed"
@@ -55,7 +63,7 @@ export ARDUINO_DIRECTORIES_DATA="${SCRIPT_DIR}/.arduino15"
 export ARDUINO_DIRECTORIES_USER="${SCRIPT_DIR}/.arduino15/user"
 export ARDUINO_DIRECTORIES_DOWNLOADS="${SCRIPT_DIR}/.arduino15/staging"
 
-python3 -c "
+${PYTHON_BIN} -c "
 import sys, os
 sys.path.insert(0, '${BACKEND_DIR}')
 import asyncio
@@ -87,7 +95,7 @@ trap cleanup SIGINT SIGTERM EXIT
 echo ""
 echo "[3/4] Starting FastAPI backend on http://127.0.0.1:8000..."
 cd "${BACKEND_DIR}"
-python3 -m uvicorn main:app --host 127.0.0.1 --port 8000 --log-level info &
+${PYTHON_BIN} -m uvicorn main:app --host 127.0.0.1 --port 8000 --log-level info &
 BACKEND_PID=$!
 
 # Wait for backend to be healthy

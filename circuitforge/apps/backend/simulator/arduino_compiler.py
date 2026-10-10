@@ -29,7 +29,17 @@ def _arduino_env() -> dict:
 
 
 def _arduino_cli_path() -> Optional[str]:
-    return shutil.which("arduino-cli")
+    path = shutil.which("arduino-cli")
+    if path:
+        return path
+    for candidate in [
+        "/opt/homebrew/bin/arduino-cli",
+        "/usr/local/bin/arduino-cli",
+        str(Path.home() / ".local/bin/arduino-cli"),
+    ]:
+        if os.path.exists(candidate) and os.access(candidate, os.X_OK):
+            return candidate
+    return None
 
 
 def arduino_cli_available() -> bool:
@@ -84,67 +94,76 @@ async def compile_firmware(sketch_dir: Path, project_name: str) -> dict:
             "binary_path": None,
         }
 
-    build_dir = sketch_dir / "build"
-    build_dir.mkdir(exist_ok=True)
+    # Arduino CLI compiles all .ino files in a directory together.
+    # To avoid redefinition when both sketch.ino and <dir>.ino exist, create a clean
+    # temporary build sketch dir if needed, or pass the sketch.ino file directly.
+    import tempfile
+    with tempfile.TemporaryDirectory() as compile_tmp:
+        tmp_sketch_dir = Path(compile_tmp) / "sketch"
+        tmp_sketch_dir.mkdir()
+        shutil.copy2(sketch_file, tmp_sketch_dir / "sketch.ino")
 
-    cmd = [
-        path, "compile",
-        "--fqbn", ESP32_FQBN,
-        "--build-path", str(build_dir),
-        "--warnings", "default",
-        str(sketch_dir),
-    ]
+        build_dir = sketch_dir / "build"
+        build_dir.mkdir(exist_ok=True)
 
-    try:
-        proc = await asyncio.create_subprocess_exec(
-            *cmd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-            cwd=str(sketch_dir),
-            env=_arduino_env(),
-        )
+        cmd = [
+            path, "compile",
+            "--fqbn", ESP32_FQBN,
+            "--build-path", str(build_dir.resolve()),
+            "--warnings", "default",
+            "--additional-urls", "https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json",
+            str(tmp_sketch_dir),
+        ]
 
         try:
-            stdout_bytes, stderr_bytes = await asyncio.wait_for(
-                proc.communicate(), timeout=COMPILE_TIMEOUT
+            proc = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                cwd=str(tmp_sketch_dir),
+                env=_arduino_env(),
             )
-        except asyncio.TimeoutError:
-            proc.kill()
-            await proc.wait()
+
+            try:
+                stdout_bytes, stderr_bytes = await asyncio.wait_for(
+                    proc.communicate(), timeout=COMPILE_TIMEOUT
+                )
+            except asyncio.TimeoutError:
+                proc.kill()
+                await proc.wait()
+                return {
+                    "success": False, "exit_code": -1,
+                    "stdout": "", "stderr": f"Compilation timed out after {COMPILE_TIMEOUT}s",
+                    "binary_path": None,
+                }
+
+            stdout = stdout_bytes[:MAX_OUTPUT_BYTES].decode("utf-8", errors="replace")
+            stderr = stderr_bytes[:MAX_OUTPUT_BYTES].decode("utf-8", errors="replace")
+            exit_code = proc.returncode
+
+            binary_path = None
+            if exit_code == 0:
+                for ext in [".bin", ".elf"]:
+                    for f in build_dir.rglob(f"*{ext}"):
+                        binary_path = str(f)
+                        break
+                    if binary_path:
+                        break
+
             return {
-                "success": False, "exit_code": -1,
-                "stdout": "", "stderr": f"Compilation timed out after {COMPILE_TIMEOUT}s",
-                "binary_path": None,
+                "success": exit_code == 0,
+                "exit_code": exit_code,
+                "stdout": stdout,
+                "stderr": stderr,
+                "binary_path": binary_path,
             }
 
-        stdout = stdout_bytes[:MAX_OUTPUT_BYTES].decode("utf-8", errors="replace")
-        stderr = stderr_bytes[:MAX_OUTPUT_BYTES].decode("utf-8", errors="replace")
-        exit_code = proc.returncode
-
-        binary_path = None
-        if exit_code == 0:
-            # Find compiled binary
-            for ext in [".bin", ".elf"]:
-                for f in build_dir.rglob(f"*{ext}"):
-                    binary_path = str(f)
-                    break
-            if binary_path:
-                break_found = True
-
-        return {
-            "success": exit_code == 0,
-            "exit_code": exit_code,
-            "stdout": stdout,
-            "stderr": stderr,
-            "binary_path": binary_path,
-        }
-
-    except Exception as e:
-        return {
-            "success": False, "exit_code": -1,
-            "stdout": "", "stderr": f"Subprocess error: {e}",
-            "binary_path": None,
-        }
+        except Exception as e:
+            return {
+                "success": False, "exit_code": -1,
+                "stdout": "", "stderr": f"Subprocess error: {e}",
+                "binary_path": None,
+            }
 
 
 async def check_library(library_name: str) -> bool:

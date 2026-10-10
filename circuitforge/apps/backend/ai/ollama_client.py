@@ -71,14 +71,21 @@ def _extract_json(text: str) -> Optional[dict]:
 
 def _extract_code(text: str, lang: str = "cpp") -> str:
     """Extract code from a markdown code block."""
+    code = ""
     # Try ```cpp or ```arduino or ```c
     for tag in [lang, "cpp", "c++", "arduino", "c", ""]:
         pattern = rf"```{tag}\s*(.*?)```"
         m = re.search(pattern, text, re.DOTALL | re.IGNORECASE)
         if m:
-            return m.group(1).strip()
-    # If no code block, return the whole text stripped
-    return text.strip()
+            code = m.group(1).strip()
+            break
+    if not code:
+        code = text.strip()
+
+    # Normalize common hallucinated header names to their real Arduino library equivalents
+    code = re.sub(r'#include\s*[<"]AdafruitUnifiedSensor\.h[>"]', '#include <Adafruit_Sensor.h>', code, flags=re.IGNORECASE)
+    code = re.sub(r'#include\s*[<"]Adafruit_Unified_Sensor\.h[>"]', '#include <Adafruit_Sensor.h>', code, flags=re.IGNORECASE)
+    return code
 
 
 # ── Planning ──────────────────────────────────────────────────────────────────
@@ -270,16 +277,20 @@ Components:
 {threshold_info}
 
 Requirements:
-- Include all required library headers
-- Define all pin constants as #define or const int
+- Include all required library headers (use <Adafruit_Sensor.h> if using DHT sensor)
+- Explicitly define each pin as a constant integer or macro before using it, for example:
+  #define DHTPIN 4
+  #define LED_PIN 2
+- Never use undeclared variable names like led_1 or dht22_1 without defining them as integer pins
 - Include setup() and loop() functions
+- Set correct pinMode() for all inputs and outputs in setup()
 - Handle sensor read errors gracefully
 - Use Serial.begin(115200) in setup()
 - Print sensor readings to Serial
 - Follow exact pin assignments provided above
 
 Generate ONLY the Arduino C++ code, starting with the #include statements.
-Do NOT add explanations outside the code. The output must compile with Arduino CLI for ESP32.
+Do NOT add explanations outside the code. The output must compile cleanly with Arduino CLI for ESP32.
 """
 
 
@@ -510,8 +521,10 @@ Compilation error:
 
 Previous repair attempts: {attempt_number}
 
-Provide a corrected, complete firmware file that will compile successfully.
-Output ONLY the corrected Arduino C++ code.
+Requirements:
+- Output ONLY the complete, corrected Arduino C++ code starting with #include statements.
+- Ensure all variables and pin identifiers are properly declared before use (e.g. #define LED_PIN 2).
+- Do not output markdown explanations or conversational text outside of the code block.
 """
 
 
@@ -535,14 +548,17 @@ async def repair_firmware(
         raw = await _ollama_generate(PLANNER_MODEL, prompt, MAX_TOKENS_FIRMWARE)
         code = _extract_code(raw)
     except Exception:
-        # Graceful repair fallback: apply common fixes (e.g. ensure #include <Arduino.h>, fix pinMode)
-        fixed_lines = []
-        if "#include <Arduino.h>" not in firmware:
-            fixed_lines.append("#include <Arduino.h>")
-        for line in firmware.splitlines():
-            fixed_lines.append(line)
-        code = "\n".join(fixed_lines)
-        raw = code
+        # Fallback to deterministic fixes
+        raw = firmware
+        code = firmware
+
+    # Common deterministic post-repair fix: undeclared scope errors like 'led_1' was not declared
+    m = re.findall(r"'(\w+)' was not declared in this scope", compiler_error)
+    for missing_id in m:
+        if f"#define {missing_id}" not in code and f"int {missing_id}" not in code:
+            # Default to GPIO 2 (builtin LED) or GPIO 4
+            default_pin = 2 if "led" in missing_id.lower() else 4
+            code = f"#define {missing_id} {default_pin}\n" + code
 
     if "void setup()" not in code or "void loop()" not in code:
         raise ValueError(f"Repaired firmware missing required functions. Raw:\n{raw[:500]}")

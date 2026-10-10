@@ -553,55 +553,330 @@
       }
     }
 
-    // Render SVG Circuit Diagram Visualizer
+    // Enhanced Interactive SVG Circuit Diagram Visualizer
+    let circuitState = {
+      zoom: 1.0,
+      pan: { x: 50, y: 30 },
+      isPanning: false,
+      panStart: { x: 0, y: 0 },
+      positions: {},
+      draggingPartId: null,
+      dragOffset: { x: 0, y: 0 },
+      currentDiag: null,
+      selectedPartId: null,
+      selectedWireIdx: null
+    };
+
+    const PIN_MAPS = {
+      'wokwi-esp32-devkit-v1': {
+        w: 170, h: 310,
+        pins: {
+          '3V3': [8, 40], 'EN': [8, 54], 'VP': [8, 68], 'VN': [8, 82],
+          'GPIO34': [8, 96], 'GPIO35': [8, 110], 'GPIO32': [8, 124], 'GPIO33': [8, 138],
+          'GPIO25': [8, 152], 'GPIO26': [8, 166], 'GPIO27': [8, 180], 'GPIO14': [8, 194],
+          'GPIO12': [8, 208], 'GPIO13': [8, 222], 'GND.1': [8, 236], 'GND': [8, 236],
+          'GPIO23': [8, 250], 'GPIO22': [8, 264], 'TX0': [8, 278], 'RX0': [8, 292],
+          'VIN': [162, 40], 'GND.2': [162, 54], 'GPIO15': [162, 180], 'GPIO2': [162, 194],
+          'GPIO4': [162, 208], 'GPIO16': [162, 222], 'GPIO17': [162, 236], 'GPIO5': [162, 250],
+          'GPIO18': [162, 264], 'GPIO19': [162, 278], 'GPIO21': [162, 292]
+        }
+      },
+      'wokwi-dht22': {
+        w: 90, h: 120,
+        pins: { 'VCC': [18, 116], 'SDA': [36, 116], 'NC': [54, 116], 'GND': [72, 116] }
+      },
+      'wokwi-hc-sr04': {
+        w: 140, h: 80,
+        pins: { 'VCC': [38, 76], 'TRIG': [56, 76], 'ECHO': [74, 76], 'GND': [92, 76] }
+      },
+      'wokwi-led': {
+        w: 50, h: 75,
+        pins: { 'A': [18, 72], 'K': [32, 72] }
+      },
+      'wokwi-resistor': {
+        w: 90, h: 40,
+        pins: { '1': [6, 20], '2': [84, 20] }
+      },
+      'wokwi-buzzer': {
+        w: 70, h: 75,
+        pins: { '1': [25, 70], '+': [25, 70], '2': [45, 70], '-': [45, 70] }
+      },
+      'wokwi-pushbutton': {
+        w: 60, h: 60,
+        pins: { '1l': [6, 18], '1r': [54, 18], '2l': [6, 42], '2r': [54, 42] }
+      },
+      'wokwi-potentiometer': {
+        w: 70, h: 80,
+        pins: { 'GND': [18, 76], 'SIG': [35, 76], 'VCC': [52, 76] }
+      }
+    };
+
+    function getPinAbsolute(partId, pinName) {
+      const diag = circuitState.currentDiag;
+      if (!diag) return null;
+      const part = (diag.parts || []).find(p => p.id === partId);
+      if (!part) return null;
+
+      const pos = circuitState.positions[partId] || { x: part.left || 0, y: part.top || 0 };
+      const meta = PIN_MAPS[part.type] || { w: 100, h: 70, pins: { 'VCC': [20, 66], 'GND': [80, 66] } };
+      
+      const clean = (pinName || '').trim();
+      let offset = meta.pins[clean] || meta.pins[clean.toUpperCase()] || meta.pins[clean.split('.')[0]];
+      if (!offset) {
+        offset = [meta.w / 2, meta.h];
+      }
+      return { x: pos.x + offset[0], y: pos.y + offset[1] };
+    }
+
     function renderDiagramSVG(diag) {
+      circuitState.currentDiag = diag;
       const container = document.getElementById('svgContainer');
+      container.className = "w-full h-[520px] bg-gray-950 rounded-xl border border-gray-800 relative overflow-hidden select-none";
+
       const parts = diag.parts || [];
       const conns = diag.connections || [];
-      
-      let svg = `<svg viewBox="0 0 900 450" class="w-full h-full" xmlns="http://www.w3.org/2000/svg">`;
-      // Background grid lines
-      svg += `<defs>
-        <pattern id="smallGrid" width="20" height="20" patternUnits="userSpaceOnUse">
-          <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#1f293d" stroke-width="0.5"/>
-        </pattern>
-      </defs>`;
-      svg += `<rect width="100%" height="100%" fill="#0b0f19" />`;
-      svg += `<rect width="100%" height="100%" fill="url(#smallGrid)" />`;
 
-      // Draw connections
-      conns.forEach((c, idx) => {
-        const color = c[2] || '#22d3ee';
-        svg += `<path d="M 150,${80 + idx * 30} C 300,${80 + idx * 30} 400,${120 + idx * 25} 600,${100 + idx * 35}" stroke="${color}" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-dasharray="4,2"/>`;
-      });
-
-      // Draw components
-      parts.forEach((p, idx) => {
-        const isEsp = p.type.includes('esp32');
-        const x = isEsp ? 60 : 450 + (idx * 130) % 350;
-        const y = isEsp ? 70 : 60 + (idx * 90) % 280;
-        const w = isEsp ? 160 : 110;
-        const h = isEsp ? 260 : 80;
-        const fill = isEsp ? '#1e293b' : '#111827';
-        const border = isEsp ? '#06b6d4' : '#3b82f6';
-
-        svg += `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="8" fill="${fill}" stroke="${border}" stroke-width="2" />`;
-        svg += `<text x="${x + w/2}" y="${y + 25}" text-anchor="middle" fill="#f8fafc" font-size="11" font-weight="bold" font-family="monospace">${p.id}</text>`;
-        svg += `<text x="${x + w/2}" y="${y + 42}" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="monospace">${p.type.replace('wokwi-', '')}</text>`;
-
-        // Component pins
-        for (let i = 0; i < 4; i++) {
-          const pinY = y + 55 + i * 20;
-          if (pinY < y + h - 10) {
-            svg += `<circle cx="${x + 6}" cy="${pinY}" r="3" fill="#38bdf8" />`;
-            svg += `<circle cx="${x + w - 6}" cy="${pinY}" r="3" fill="#38bdf8" />`;
+      // Initialize default non-overlapping layout if not yet set
+      let nonMcu = 0;
+      parts.forEach(p => {
+        if (!circuitState.positions[p.id]) {
+          const isEsp = p.type.includes('esp32') || p.type.includes('uno');
+          if (isEsp) {
+            circuitState.positions[p.id] = { x: 60, y: 40 };
+          } else {
+            const col = Math.floor(nonMcu / 2);
+            const row = nonMcu % 2;
+            circuitState.positions[p.id] = { x: 320 + col * 170, y: 40 + row * 160 };
+            nonMcu++;
           }
         }
       });
 
-      svg += `</svg>`;
-      container.innerHTML = svg;
+      drawCircuitCanvas();
     }
+
+    function drawCircuitCanvas() {
+      const container = document.getElementById('svgContainer');
+      const diag = circuitState.currentDiag;
+      if (!diag) return;
+
+      const parts = diag.parts || [];
+      const conns = diag.connections || [];
+      const { zoom, pan, positions, selectedPartId, selectedWireIdx } = circuitState;
+
+      let html = `
+        <div class="absolute top-3 right-3 z-10 flex items-center gap-1.5 bg-gray-900/90 border border-gray-800 rounded-lg p-1.5 backdrop-blur">
+          <button onclick="circuitZoom(1.2)" class="px-2 py-1 bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs rounded font-bold">+</button>
+          <button onclick="circuitZoom(0.8)" class="px-2 py-1 bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs rounded font-bold">−</button>
+          <button onclick="circuitResetView()" class="px-2 py-1 bg-gray-800 hover:bg-gray-700 text-cyan-400 text-xs rounded"><i class="fa-solid fa-arrows-rotate"></i></button>
+          <span class="text-[10px] text-gray-400 font-mono px-1">${Math.round(zoom * 100)}%</span>
+        </div>
+        <div class="absolute bottom-3 left-3 z-10 text-[11px] text-gray-500 pointer-events-none">
+          <span class="text-gray-400 font-semibold">Drag</span> parts to move • <span class="text-gray-400 font-semibold">Pan</span> canvas • Click part or wire to inspect
+        </div>
+      `;
+
+      html += `<svg id="circuitSvg" width="100%" height="100%" style="background-image: radial-gradient(circle, rgba(34,211,238,0.08) 1px, transparent 1px); background-size: ${24 * zoom}px ${24 * zoom}px;" class="cursor-grab active:cursor-grabbing">`;
+      html += `<g transform="translate(${pan.x}, ${pan.y}) scale(${zoom})">`;
+
+      // 1. Draw Wires
+      conns.forEach((c, idx) => {
+        const fromStr = c[0] || '';
+        const toStr = c[1] || '';
+        const color = c[2] || '#22d3ee';
+        const [fPart, fPin] = fromStr.split(':');
+        const [tPart, tPin] = toStr.split(':');
+
+        const start = getPinAbsolute(fPart, fPin);
+        const end = getPinAbsolute(tPart, tPin);
+        if (start && end) {
+          const dx = Math.abs(end.x - start.x);
+          const dy = Math.abs(end.y - start.y);
+          const offset = Math.max(30, Math.min(140, (dx + dy) * 0.35));
+          const isSelected = selectedWireIdx === idx;
+          const strokeW = isSelected ? 4.5 : 2.5;
+
+          const d = `M ${start.x},${start.y} C ${start.x + (end.x > start.x ? offset : -offset)},${start.y} ${end.x - (end.x > start.x ? offset : -offset)},${end.y} ${end.x},${end.y}`;
+          html += `
+            <g class="cursor-pointer" onclick="selectWire(${idx})">
+              <path d="${d}" fill="none" stroke="transparent" stroke-width="16" />
+              <path d="${d}" fill="none" stroke="${isSelected ? '#38bdf8' : color}" stroke-width="${strokeW}" stroke-linecap="round" />
+              <circle cx="${start.x}" cy="${start.y}" r="${isSelected ? 4 : 3}" fill="${color}" stroke="#0f172a" stroke-width="1" />
+              <circle cx="${end.x}" cy="${end.y}" r="${isSelected ? 4 : 3}" fill="${color}" stroke="#0f172a" stroke-width="1" />
+            </g>
+          `;
+        }
+      });
+
+      // 2. Draw Parts
+      parts.forEach(p => {
+        const pos = positions[p.id] || { x: p.left || 0, y: p.top || 0 };
+        const meta = PIN_MAPS[p.type] || { w: 100, h: 70, pins: {} };
+        const isSelected = selectedPartId === p.id;
+
+        html += `<g transform="translate(${pos.x}, ${pos.y})" class="cursor-move" onmousedown="startDragPart('${p.id}', event)">`;
+        
+        if (isSelected) {
+          html += `<rect x="-5" y="-5" width="${meta.w + 10}" height="${meta.h + 10}" rx="10" fill="none" stroke="#22d3ee" stroke-width="2" stroke-dasharray="6,4" />`;
+        }
+
+        // Distinct component artwork
+        if (p.type.includes('esp32')) {
+          html += `
+            <rect x="0" y="0" width="170" height="310" rx="8" fill="#131b2e" stroke="${isSelected ? '#22d3ee' : '#334155'}" stroke-width="2" />
+            <rect x="65" y="-3" width="40" height="18" rx="3" fill="#94a3b8" />
+            <rect x="28" y="34" width="114" height="130" rx="4" fill="#273549" stroke="#64748b" stroke-width="1.5" />
+            <rect x="36" y="40" width="98" height="26" rx="2" fill="#854d0e" stroke="#ca8a04" stroke-width="1" />
+            <text x="85" y="96" fill="#e2e8f0" font-size="11" font-weight="bold" font-family="monospace" text-anchor="middle">ESP-WROOM-32</text>
+            <text x="85" y="112" fill="#94a3b8" font-size="8" font-family="monospace" text-anchor="middle">Wi-Fi + BT SoC</text>
+            <text x="85" y="242" fill="#38bdf8" font-size="10" font-weight="bold" font-family="monospace" text-anchor="middle">ESP32 DevKit</text>
+          `;
+        } else if (p.type.includes('dht22')) {
+          html += `
+            <rect x="0" y="0" width="90" height="105" rx="6" fill="#f1f5f9" stroke="${isSelected ? '#22d3ee' : '#94a3b8'}" stroke-width="2" />
+            <rect x="15" y="20" width="60" height="6" rx="2" fill="#cbd5e1" />
+            <rect x="15" y="34" width="60" height="6" rx="2" fill="#cbd5e1" />
+            <rect x="15" y="48" width="60" height="6" rx="2" fill="#cbd5e1" />
+            <rect x="15" y="62" width="60" height="6" rx="2" fill="#cbd5e1" />
+            <text x="45" y="88" fill="#334155" font-size="11" font-weight="bold" font-family="monospace" text-anchor="middle">DHT22</text>
+            <line x1="18" y1="105" x2="18" y2="116" stroke="#cbd5e1" stroke-width="3" />
+            <line x1="36" y1="105" x2="36" y2="116" stroke="#cbd5e1" stroke-width="3" />
+            <line x1="54" y1="105" x2="54" y2="116" stroke="#cbd5e1" stroke-width="3" />
+            <line x1="72" y1="105" x2="72" y2="116" stroke="#cbd5e1" stroke-width="3" />
+          `;
+        } else if (p.type.includes('led')) {
+          const color = (p.attrs && p.attrs.color) || 'red';
+          const domeColor = color === 'green' ? '#22c55e' : color === 'blue' ? '#3b82f6' : '#ef4444';
+          html += `
+            <path d="M 12,38 C 12,18 20,8 25,8 C 30,8 38,18 38,38 Z" fill="${domeColor}" stroke="${isSelected ? '#22d3ee' : '#f87171'}" stroke-width="2" fill-opacity="0.9" />
+            <rect x="10" y="38" width="30" height="6" rx="1" fill="${domeColor}" />
+            <line x1="18" y1="44" x2="18" y2="72" stroke="#94a3b8" stroke-width="2.5" />
+            <line x1="32" y1="44" x2="32" y2="72" stroke="#94a3b8" stroke-width="2.5" />
+            <text x="25" y="56" fill="#94a3b8" font-size="7" font-family="monospace" text-anchor="middle">LED</text>
+          `;
+        } else if (p.type.includes('resistor')) {
+          const val = (p.attrs && p.attrs.value) || '220';
+          html += `
+            <line x1="6" y1="20" x2="22" y2="20" stroke="#94a3b8" stroke-width="2.5" />
+            <line x1="68" y1="20" x2="84" y2="20" stroke="#94a3b8" stroke-width="2.5" />
+            <rect x="22" y="10" width="46" height="20" rx="5" fill="#fde68a" stroke="${isSelected ? '#22d3ee' : '#d97706'}" stroke-width="2" />
+            <rect x="28" y="10" width="4" height="20" fill="#ef4444" />
+            <rect x="36" y="10" width="4" height="20" fill="#ef4444" />
+            <rect x="44" y="10" width="4" height="20" fill="#854d0e" />
+            <rect x="56" y="10" width="4" height="20" fill="#ca8a04" />
+            <text x="45" y="38" fill="#d97706" font-size="8" font-weight="bold" font-family="monospace" text-anchor="middle">${val}Ω</text>
+          `;
+        } else {
+          html += `
+            <rect x="0" y="0" width="${meta.w}" height="${meta.h}" rx="6" fill="#1e293b" stroke="${isSelected ? '#22d3ee' : '#475569'}" stroke-width="2" />
+            <text x="${meta.w/2}" y="32" fill="#f8fafc" font-size="11" font-weight="bold" font-family="monospace" text-anchor="middle">${p.id}</text>
+            <text x="${meta.w/2}" y="48" fill="#94a3b8" font-size="8" font-family="monospace" text-anchor="middle">${p.type.replace('wokwi-','')}</text>
+          `;
+        }
+
+        // Header Label Tag
+        html += `
+          <g transform="translate(${meta.w / 2}, -10)">
+            <rect x="-35" y="-12" width="70" height="18" rx="4" fill="#0f172a" stroke="${isSelected ? '#22d3ee' : '#334155'}" stroke-width="1" />
+            <text x="0" y="0" fill="#e2e8f0" font-size="9" font-weight="bold" font-family="monospace" text-anchor="middle">${p.id}</text>
+          </g>
+        `;
+
+        // Pins
+        Object.entries(meta.pins || {}).forEach(([pName, [px, py]]) => {
+          html += `<circle cx="${px}" cy="${py}" r="3.5" fill="#38bdf8" stroke="#0f172a" stroke-width="1" />`;
+        });
+
+        html += `</g>`;
+      });
+
+      html += `</g></svg>`;
+
+      // Detail Inspector if wire selected
+      if (selectedWireIdx !== null && conns[selectedWireIdx]) {
+        const c = conns[selectedWireIdx];
+        html += `
+          <div class="absolute top-4 left-4 bg-gray-900/95 border border-cyan-500/50 rounded-lg p-3 shadow-2xl backdrop-blur z-20 flex items-start gap-3">
+            <div>
+              <div class="text-[10px] uppercase font-bold text-cyan-400"><i class="fa-solid fa-plug text-xs mr-1"></i> Wire Connection</div>
+              <div class="text-xs font-mono text-white mt-1"><span class="text-cyan-300">${c[0]}</span> ↔ <span class="text-amber-300">${c[1]}</span></div>
+              <div class="text-[11px] text-gray-400 mt-1">Wire Color: ${c[2] || '#22d3ee'}</div>
+            </div>
+            <button onclick="circuitState.selectedWireIdx = null; drawCircuitCanvas();" class="text-gray-500 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+          </div>
+        `;
+      }
+
+      container.innerHTML = html;
+      attachCanvasListeners();
+    }
+
+    function attachCanvasListeners() {
+      const svg = document.getElementById('circuitSvg');
+      if (!svg) return;
+
+      svg.onmousedown = (e) => {
+        if (e.target === svg) {
+          circuitState.isPanning = true;
+          circuitState.panStart = { x: e.clientX - circuitState.pan.x, y: e.clientY - circuitState.pan.y };
+        }
+      };
+
+      window.onmousemove = (e) => {
+        if (circuitState.isPanning) {
+          circuitState.pan.x = e.clientX - circuitState.panStart.x;
+          circuitState.pan.y = e.clientY - circuitState.panStart.y;
+          drawCircuitCanvas();
+        } else if (circuitState.draggingPartId) {
+          const pid = circuitState.draggingPartId;
+          const newX = Math.round((e.clientX - circuitState.pan.x) / circuitState.zoom - circuitState.dragOffset.x);
+          const newY = Math.round((e.clientY - circuitState.pan.y) / circuitState.zoom - circuitState.dragOffset.y);
+          circuitState.positions[pid] = { x: newX, y: newY };
+          drawCircuitCanvas();
+        }
+      };
+
+      window.onmouseup = () => {
+        circuitState.isPanning = false;
+        circuitState.draggingPartId = null;
+      };
+
+      svg.onwheel = (e) => {
+        e.preventDefault();
+        const factor = e.deltaY < 0 ? 1.1 : 0.9;
+        circuitZoom(factor);
+      };
+    }
+
+    function startDragPart(partId, e) {
+      e.stopPropagation();
+      circuitState.selectedPartId = partId;
+      circuitState.selectedWireIdx = null;
+      const pos = circuitState.positions[partId] || { x: 0, y: 0 };
+      const mouseX = (e.clientX - circuitState.pan.x) / circuitState.zoom;
+      const mouseY = (e.clientY - circuitState.pan.y) / circuitState.zoom;
+      circuitState.dragOffset = { x: mouseX - pos.x, y: mouseY - pos.y };
+      circuitState.draggingPartId = partId;
+      drawCircuitCanvas();
+    }
+
+    function selectWire(idx) {
+      circuitState.selectedWireIdx = idx;
+      circuitState.selectedPartId = null;
+      drawCircuitCanvas();
+    }
+
+    function circuitZoom(factor) {
+      circuitState.zoom = Math.max(0.4, Math.min(2.8, circuitState.zoom * factor));
+      drawCircuitCanvas();
+    }
+
+    function circuitResetView() {
+      circuitState.zoom = 1.0;
+      circuitState.pan = { x: 50, y: 30 };
+      drawCircuitCanvas();
+    }
+
 
     // Render Validation Report
     function renderValidation(res) {

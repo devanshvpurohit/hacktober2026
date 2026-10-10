@@ -15,7 +15,7 @@ import httpx
 
 def _arduino_env() -> dict:
     env = os.environ.copy()
-    arduino_dir = Path(__file__).resolve().parent.parent.parent.parent / ".arduino15"
+    arduino_dir = Path(__file__).resolve().parent.parent.parent / ".arduino15"
     arduino_dir.mkdir(parents=True, exist_ok=True)
     env["ARDUINO_DIRECTORIES_DATA"] = str(arduino_dir)
     env["ARDUINO_DIRECTORIES_USER"] = str(arduino_dir / "user")
@@ -84,15 +84,29 @@ async def check_model(model_name: str) -> dict:
         return {"name": found, "installed": True, "inference_ok": False, "error": str(e)}
 
 
+def _find_arduino_cli() -> Optional[str]:
+    path = shutil.which("arduino-cli")
+    if path:
+        return path
+    for candidate in [
+        "/opt/homebrew/bin/arduino-cli",
+        "/usr/local/bin/arduino-cli",
+        str(Path.home() / ".local/bin/arduino-cli"),
+    ]:
+        if os.path.exists(candidate) and os.access(candidate, os.X_OK):
+            return candidate
+    return None
+
+
 def check_arduino_cli() -> dict:
     """Check if Arduino CLI is installed and functional."""
-    path = shutil.which("arduino-cli")
+    path = _find_arduino_cli()
     if path is None:
         return {"available": False, "path": None, "version": None,
                 "error": "arduino-cli not found in PATH"}
     try:
         result = subprocess.run(
-            ["arduino-cli", "version"],
+            [path, "version"],
             capture_output=True, text=True, timeout=10,
             env=_arduino_env(),
         )
@@ -127,14 +141,17 @@ def check_wokwi_cli() -> dict:
 
 def check_arduino_boards() -> dict:
     """Check if ESP32 board core is installed."""
+    path = _find_arduino_cli()
+    if path is None:
+        return {"available": False, "esp32_installed": False, "error": "arduino-cli not found"}
     try:
         result = subprocess.run(
-            ["arduino-cli", "board", "listall"],
+            [path, "core", "list"],
             capture_output=True, text=True, timeout=30,
             env=_arduino_env(),
         )
         if result.returncode == 0:
-            has_esp32 = "esp32" in result.stdout.lower()
+            has_esp32 = "esp32:esp32" in result.stdout.lower() or "esp32" in result.stdout.lower()
             return {"available": True, "esp32_installed": has_esp32,
                     "note": "ESP32 core found" if has_esp32 else "ESP32 core not installed. Run: arduino-cli core install esp32:esp32"}
         return {"available": False, "esp32_installed": False, "error": result.stderr.strip()}

@@ -70,5 +70,8 @@ htmlcov/
 docs/_build/
 site/
 .arduino15/
-circuitforge/workspace/*.db
+circuitforge/workspace/
 circuitforge/.arduino15/
+circuitforge/apps/backend/.venv/
+circuitforge/apps/frontend/node_modules/
+circuitforge/apps/frontend/dist/

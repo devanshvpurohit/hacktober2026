@@ -1,8 +1,9 @@
-import { useState, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState, useCallback, useEffect } from 'react'
+import { useNavigate, Link } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import { Cpu, Zap, Thermometer, Radio, Volume2, ArrowRight, Loader2 } from 'lucide-react'
-import { createProject, planProject, getErrorMessage } from '../utils/api'
+import { Cpu, Zap, Thermometer, Radio, Volume2, ArrowRight, Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
+import { createProject, planProject, getErrorMessage, getSystemStatus } from '../utils/api'
+import type { SystemStatus } from '../types'
 
 const EXAMPLES = [
   {
@@ -35,6 +36,11 @@ export default function HomePage() {
   const navigate = useNavigate()
   const [request, setRequest] = useState('')
   const [loading, setLoading] = useState(false)
+  const [sysStatus, setSysStatus] = useState<SystemStatus | null>(null)
+
+  useEffect(() => {
+    getSystemStatus().then(setSysStatus).catch(() => {})
+  }, [])
 
   const handleCreate = useCallback(async (text?: string) => {
     const req = (text ?? request).trim()
@@ -90,6 +96,23 @@ export default function HomePage() {
             From natural language to validated circuits, Arduino firmware, and Wokwi simulations —
             all locally on your machine.
           </p>
+
+          {sysStatus && (
+            <div className="flex flex-wrap items-center justify-center gap-2.5 mt-6 text-xs">
+              <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border ${sysStatus.ollama.available ? 'bg-cyan-950/60 border-cyan-800 text-cyan-300' : 'bg-amber-950/60 border-amber-800 text-amber-300'}`}>
+                {sysStatus.ollama.available ? <CheckCircle2 className="w-3.5 h-3.5 text-cyan-400" /> : <AlertCircle className="w-3.5 h-3.5 text-amber-400" />}
+                Ollama: {sysStatus.ollama.available ? `${[sysStatus.models.planner?.installed, sysStatus.models.firmware_generator?.installed].filter(Boolean).length}/2 models ready` : 'Catalog Fallback'}
+              </span>
+              <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border ${sysStatus.arduino_cli.available ? 'bg-indigo-950/60 border-indigo-800 text-indigo-300' : 'bg-gray-800 border-gray-700 text-gray-400'}`}>
+                {sysStatus.arduino_cli.available ? <CheckCircle2 className="w-3.5 h-3.5 text-indigo-400" /> : <AlertCircle className="w-3.5 h-3.5 text-gray-500" />}
+                Arduino CLI: {sysStatus.arduino_cli.available ? 'v1.5.1' : 'Not installed'}
+              </span>
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border bg-emerald-950/60 border-emerald-800 text-emerald-300">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                Backend: 127.0.0.1:8000
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Input */}
